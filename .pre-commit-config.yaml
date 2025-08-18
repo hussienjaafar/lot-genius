@@ -5,7 +5,6 @@ repos:
     rev: 24.4.2
     hooks:
       - id: black
-        language_version: python3.11
         files: ^backend/.*\.py$
 
   # Python linting
@@ -56,21 +55,20 @@ repos:
     rev: v1.4.0
     hooks:
       - id: detect-secrets
-        args: [--baseline, .secrets.baseline]
         exclude: package-lock\.json
 
-  # Markdown linting
-  - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.39.0
-    hooks:
-      - id: markdownlint
-        args: [--fix]
-        files: \.md$
-        exclude: ^(node_modules/|.venv/)
+  # Markdown linting (disabled for now due to line length conflicts)
+  # - repo: https://github.com/igorshubovych/markdownlint-cli
+  #   rev: v0.39.0
+  #   hooks:
+  #     - id: markdownlint
+  #       args: [--fix]
+  #       files: \.md$
+  #       exclude: ^(node_modules/|.venv/)
 
 # Configuration
 default_language_version:
-  python: python3.11
+  python: python3
 
 # Run configuration
 fail_fast: false

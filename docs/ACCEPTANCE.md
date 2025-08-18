@@ -1,6 +1,6 @@
 # Acceptance Criteria — Step 1
 
-## Step 1 passes if:
+## Step 1 passes if
 
 1. **Files exist with content committed:**
    - `/README.md` - Project overview with configurable investment gate

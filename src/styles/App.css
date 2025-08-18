@@ -11,7 +11,11 @@
 }
 
 .header {
-  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  background: linear-gradient(
+    135deg,
+    var(--primary-color),
+    var(--secondary-color)
+  );
   color: white;
   padding: 3rem 2rem;
   text-align: center;

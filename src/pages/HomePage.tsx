@@ -1,4 +1,4 @@
-import React from 'react'
+import React from "react";
 
 const HomePage: React.FC = () => {
   return (
@@ -10,12 +10,15 @@ const HomePage: React.FC = () => {
       <main className="main-content">
         <section className="hero-section">
           <h2>Manage Your Lots Efficiently</h2>
-          <p>Track, organize, and optimize your lot operations with our intelligent platform.</p>
+          <p>
+            Track, organize, and optimize your lot operations with our
+            intelligent platform.
+          </p>
           <button className="cta-button">Get Started</button>
         </section>
       </main>
     </div>
-  )
-}
+  );
+};
 
-export default HomePage
+export default HomePage;

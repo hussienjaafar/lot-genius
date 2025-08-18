@@ -100,6 +100,11 @@ map-preview:
 	@echo "Running header mapping preview..."
 	$(PYTHON) -m backend.cli.map_preview backend/tests/fixtures/manifest_sample.csv
 
+## Preview header mappings with candidates
+map-preview-candidates:
+	@echo "Running header mapping preview with suggestions..."
+	$(PYTHON) -m backend.cli.map_preview backend/tests/fixtures/manifest_sample.csv --show-candidates
+
 ## Show available commands
 help:
 	@echo "Available commands:"
@@ -110,6 +115,7 @@ help:
 	@echo "  make format      - Format code with black/isort"
 	@echo "  make clean       - Remove build artifacts"
 	@echo "  make map-preview - Preview header mappings"
+	@echo "  make map-preview-candidates - Preview with suggestions"
 	@echo "  make run-dev     - Start development server"
 	@echo "  make run-prod    - Start production server"
 	@echo "  make docker-build - Build Docker image"

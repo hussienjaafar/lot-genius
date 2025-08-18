@@ -52,6 +52,12 @@ python -m backend.cli.map_preview backend/tests/fixtures/manifest_sample.csv
 python -m backend.cli.map_preview backend/tests/fixtures/manifest_sample.csv --save-alias "Cond." condition
 ```
 
+**Show suggestions for unmapped headers**
+
+```bash
+python -m backend.cli.map_preview backend/tests/fixtures/manifest_sample.csv --show-candidates --top-k 5
+```
+
 ## Next Steps
 
 - ✅ Canonical schema & header mapping

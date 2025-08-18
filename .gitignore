@@ -105,6 +105,10 @@ mlruns/
 data/
 !data/.gitkeep
 
+# Learned header aliases (keep dir, ignore contents)
+data/aliases/*
+!data/aliases/.gitkeep
+
 # Database
 *.db
 *.sqlite

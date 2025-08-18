@@ -150,3 +150,26 @@ def map_headers(
     # ensure we don't map multiple source headers to same canonical when avoidable
     # (leave as-is; later steps can add disambiguation UI)
     return mapping, unmapped
+
+
+def suggest_candidates(src_header: str, top_k: int = 5) -> list[dict]:
+    """
+    Return top-k fuzzy candidates for a source header.
+    Each item: {"candidate": str, "canonical": str|None, "score": int}
+    """
+    # Build same candidate universe as map_headers
+    candidates = set(CANONICAL)
+    for k, syns in SYNONYMS.items():
+        candidates.add(k)
+        candidates.update(syns)
+    cand_list = list(candidates)
+
+    results = process.extract(src_header, cand_list, scorer=fuzz.WRatio, limit=top_k)
+    out = []
+    for cand, score, _ in results:
+        if cand in CANONICAL:
+            canonical = cand
+        else:
+            canonical = next((k for k, v in SYNONYMS.items() if cand in v), None)
+        out.append({"candidate": cand, "canonical": canonical, "score": int(score)})
+    return out

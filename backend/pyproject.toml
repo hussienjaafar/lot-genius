@@ -1,0 +1,26 @@
+[project]
+name = "lotgenius"
+version = "0.0.1"
+description = "Lot Genius backend utilities (schema, header mapping)"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "pandas>=2.2",
+  "rapidfuzz>=3.9",
+  "pydantic>=2.7",
+  "pydantic-settings>=2.2",
+  "python-dotenv>=1.0",
+  "click>=8.1"
+]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["lotgenius*", "cli*"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-q"
+testpaths = ["backend/tests"]

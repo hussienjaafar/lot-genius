@@ -42,9 +42,19 @@ cp infra/.env.example .env
 - Optional scrapers (low-trust; behind `ENABLE_SCRAPERS=false` by default)
 - Optional manual CSV imports for comps
 
+## 60-Second Map Preview (Step 2)
+
+```bash
+# from repo root
+python -m pip install -e backend
+python -m backend.cli.map_preview backend/tests/fixtures/manifest_sample.csv
+# Optional: persist an alias if something didn't map
+python -m backend.cli.map_preview backend/tests/fixtures/manifest_sample.csv --save-alias "Cond." condition
+```
+
 ## Next Steps
 
-- Canonical schema & header mapping
+- ✅ Canonical schema & header mapping
 - Golden manifests & Great Expectations
 - Parser/cleaner with quantity explode
 - Keepa client with rate limiting

@@ -9,6 +9,13 @@ PROJECT_NAME := lot-genius
 # Default target
 .DEFAULT_GOAL := help
 
+## Install backend package
+install:
+	@echo "Installing backend package..."
+	$(PYTHON) -m pip install -U pip
+	$(PYTHON) -m pip install -e backend
+	@echo "Installed editable backend package."
+
 ## Initialize development environment
 init:
 	@echo "Initializing development environment..."
@@ -29,11 +36,7 @@ lint:
 ## Run tests
 test:
 	@echo "Running tests..."
-	@if [ -d "backend/tests" ]; then \
-		cd backend && pytest tests/ -v; \
-	else \
-		echo "Tests will be added in Step 2/3 (stub)"; \
-	fi
+	pytest
 
 ## Format code
 format:
@@ -92,14 +95,21 @@ docker-up:
 		echo "Docker Compose not yet configured (stub)"; \
 	fi
 
+## Preview header mappings
+map-preview:
+	@echo "Running header mapping preview..."
+	$(PYTHON) -m backend.cli.map_preview backend/tests/fixtures/manifest_sample.csv
+
 ## Show available commands
 help:
 	@echo "Available commands:"
+	@echo "  make install     - Install backend package"
 	@echo "  make init        - Initialize development environment"
 	@echo "  make lint        - Run code linters"
 	@echo "  make test        - Run test suite"
 	@echo "  make format      - Format code with black/isort"
 	@echo "  make clean       - Remove build artifacts"
+	@echo "  make map-preview - Preview header mappings"
 	@echo "  make run-dev     - Start development server"
 	@echo "  make run-prod    - Start production server"
 	@echo "  make docker-build - Build Docker image"

@@ -184,6 +184,10 @@ estimate-prices-with-floors:
 estimate-sell:
 	$(PYTHON) -m backend.cli.estimate_sell data/out/estimated_prices.csv --out-csv data/out/estimated_sell.csv --evidence-out data/evidence/sell_evidence.jsonl --days 60 --list-price-mode p50 --list-price-multiplier 1.0
 
+## Optimize bid using ROI constraints (Step 9)
+optimize-bid:
+	$(PYTHON) -m backend.cli.optimize_bid data/out/estimated_sell.csv --out-json data/out/optimize_bid.json --lo 0 --hi 5000 --roi-target 1.25 --risk-threshold 0.80 --sims 2000
+
 ## Show available commands
 help:
 	@echo "Available commands:"

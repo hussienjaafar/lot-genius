@@ -359,3 +359,32 @@ The rank-to-sales mapping uses power law: `daily_sales = a * rank^b`, bounded by
 This is a scaffold; coefficients are tunable. Later steps will calibrate from backtests (isotonic reliability curves & Brier score).
 
 No hard-coded ROI logic here; the optimizer will consume `sell_p60` downstream.
+
+## Step 9 — Lot ROI & Max-Bid Optimizer (Monte Carlo + Bisection)
+
+Takes enriched, per-unit CSV with `est_price_mu`, `est_price_sigma`, and `sell_p60`. Simulates revenue under fees/costs, then finds the highest bid s.t. **P(ROI ≥ roi_target) ≥ risk_threshold** (and optional **expected cash ≤60d ≥ min_cash_60d**).
+
+**Run:**
+
+```bash
+python -m backend.cli.optimize_bid data/out/estimated_sell.csv \
+  --out-json data/out/optimize_bid.json \
+  --lo 0 --hi 5000 \
+  --roi-target 1.25 --risk-threshold 0.80 \
+  --sims 2000
+
+# Or use the Makefile shortcut
+make optimize-bid
+```
+
+**Knobs:**
+
+- `--salvage-frac` (default 0.50): salvage as fraction of drawn price for unsold
+- `--marketplace-fee-pct`, `--payment-fee-pct`, `--per-order-fee-fixed`
+- `--shipping-per-order`, `--packaging-per-order`, `--refurb-per-order`
+- `--return-rate` (default 0.08)
+- `--min-cash-60d` (optional cash recovery constraint)
+
+Random seed & tolerance controllable.
+
+**NOTE:** ROI target is configurable (not hard-coded). Defaults reflect your "≥1.25× within ~60 days" minimum.

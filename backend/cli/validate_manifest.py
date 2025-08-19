@@ -18,7 +18,13 @@ from lotgenius.validation import validate_manifest_csv
     show_default=True,
     help="Exit non-zero when validation fails.",
 )
-def main(csv_path: Path, threshold: int, strict: bool):
+@click.option(
+    "--show-coverage/--no-show-coverage",
+    default=False,
+    show_default=True,
+    help="Include a human-friendly percentage field in the JSON payload.",
+)
+def main(csv_path: Path, threshold: int, strict: bool, show_coverage: bool):
     """
     Validate a raw manifest CSV:
       - header mapping coverage,
@@ -26,6 +32,9 @@ def main(csv_path: Path, threshold: int, strict: bool):
     Prints a JSON report with 'passed' boolean and notes.
     """
     rep = validate_manifest_csv(csv_path, fuzzy_threshold=threshold)
+    failed_expectations = [
+        r.get("expectation") for r in rep.ge_results if not r.get("success")
+    ]
     payload = {
         "path": rep.path,
         "passed": rep.passed,
@@ -35,8 +44,11 @@ def main(csv_path: Path, threshold: int, strict: bool):
         "unmapped_headers": rep.unmapped_headers,
         "ge_success": rep.ge_success,
         "ge_results": rep.ge_results,
+        "failed_expectations": failed_expectations,
         "notes": rep.notes,
     }
+    if show_coverage:
+        payload["header_coverage_pct"] = f"{rep.header_coverage:.0%}"
     click.echo(json.dumps(payload, indent=2))
     if strict and not payload["passed"]:
         raise SystemExit(2)

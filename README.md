@@ -83,6 +83,18 @@ make validate-golden
 make validate-golden-good
 ```
 
+**Validate a single file (strict)**
+
+```bash
+make validate FILE=data/golden_manifests/01_basic.csv
+```
+
+**Show human-friendly coverage in JSON**
+
+```bash
+python -m backend.cli.validate_manifest data/golden_manifests/01_basic.csv --show-coverage
+```
+
 ## Next Steps
 
 - ✅ Canonical schema & header mapping

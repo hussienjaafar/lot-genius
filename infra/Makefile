@@ -135,6 +135,11 @@ validate-golden-good:
 	  fi; \
 	done
 
+## Validate a single file (strict)
+validate:
+	@if [ -z "$(FILE)" ]; then echo 'Usage: make validate FILE=path/to.csv'; exit 2; fi
+	$(PYTHON) -m backend.cli.validate_manifest $(FILE) --strict
+
 ## Show available commands
 help:
 	@echo "Available commands:"
@@ -150,6 +155,7 @@ help:
 	@echo "  make validate-one - Validate single golden manifest"
 	@echo "  make validate-golden - Validate all golden manifests"
 	@echo "  make validate-golden-good - Validate good golden manifests (skip bad files)"
+	@echo "  make validate FILE=path/to.csv - Validate single file (strict)"
 	@echo "  make run-dev     - Start development server"
 	@echo "  make run-prod    - Start production server"
 	@echo "  make docker-build - Build Docker image"

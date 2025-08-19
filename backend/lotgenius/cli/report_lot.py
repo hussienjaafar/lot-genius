@@ -6,6 +6,17 @@ import click
 import pandas as pd
 
 
+def _load_last_evidence_record(p):
+    """Load the last record from an NDJSON evidence file."""
+    try:
+        lines = [
+            ln for ln in Path(p).read_text(encoding="utf-8").splitlines() if ln.strip()
+        ]
+        return json.loads(lines[-1]) if lines else None
+    except Exception:
+        return None
+
+
 @click.command()
 @click.option(
     "--items-csv",
@@ -131,8 +142,29 @@ def _mk_markdown(items, opt, sweep_csv=None, sweep_png=None, evidence_jsonl=None
     prob_roi_ge_target = opt.get("prob_roi_ge_target")
     expected_cash_60d = opt.get("expected_cash_60d")
     meets_constraints = opt.get("meets_constraints")
-    roi_target = opt.get("roi_target", "N/A")
-    risk_threshold = opt.get("risk_threshold", "N/A")
+    roi_target = opt.get("roi_target")
+    risk_threshold = opt.get("risk_threshold")
+
+    # Evidence fallback if values missing and evidence file provided and exists
+    if (
+        evidence_jsonl
+        and (roi_target is None or risk_threshold is None)
+        and Path(evidence_jsonl).exists()
+    ):
+        rec = _load_last_evidence_record(evidence_jsonl)
+        meta = (rec or {}).get("meta", {}) if isinstance(rec, dict) else {}
+        roi_target = meta.get("roi_target", roi_target)
+        risk_threshold = meta.get("risk_threshold", risk_threshold)
+
+    # Type safety for formatting after fallback
+    try:
+        roi_target = float(roi_target) if roi_target is not None else None
+    except Exception:
+        pass
+    try:
+        risk_threshold = float(risk_threshold) if risk_threshold is not None else None
+    except Exception:
+        pass
 
     # Format numbers
     def fmt_currency(x):
@@ -144,6 +176,23 @@ def _mk_markdown(items, opt, sweep_csv=None, sweep_png=None, evidence_jsonl=None
     def fmt_ratio(x):
         return f"{x:.2f}×" if x is not None and not pd.isna(x) else "N/A"
 
+    def fmt_bool(x):
+        if x is True:
+            return "Yes"
+        if x is False:
+            return "No"
+        return "N/A"
+
+    def fmt_bool_emoji(x):
+        if x is True:
+            return "✅ Yes"
+        if x is False:
+            return "❌ No"
+        return "N/A"
+
+    def fmt_prob2(x):
+        return f"{x:.2f}" if x is not None and not pd.isna(x) else "N/A"
+
     # Build markdown content
     md_lines = [
         "# Lot Genius Report",
@@ -154,61 +203,99 @@ def _mk_markdown(items, opt, sweep_csv=None, sweep_png=None, evidence_jsonl=None
         f"**Expected ROI (P50):** {fmt_ratio(roi_p50)}",
         f"**Probability of Meeting ROI Target:** {fmt_pct(prob_roi_ge_target)}",
         f"**Expected 60-day Cash Recovery:** {fmt_currency(expected_cash_60d)}",
-        f"**Meets All Constraints:** {'✅ Yes' if meets_constraints else '❌ No'}",
-        "",
-        "## Lot Overview",
-        "",
-        f"- **Total Items:** {item_count:,}",
-        f"- **Estimated Total Value (μ):** {fmt_currency(total_mu)}",
-        f"- **Estimated Total Value (P50):** {fmt_currency(total_p50)}",
-        f"- **Average 60-day Sell Probability:** {fmt_pct(avg_sell_p60)}",
-        "",
-        "## Optimization Parameters",
-        "",
-        f"- **ROI Target:** {roi_target}",
-        f"- **Risk Threshold:** {risk_threshold}",
-        "",
-        "## Investment Decision",
-        "",
+        f"**Meets All Constraints:** {fmt_bool_emoji(meets_constraints)}",
     ]
 
+    # Add unconditional Executive Summary bullets
+    md_lines.extend(
+        [
+            "",
+            (
+                f"- ROI Target: {roi_target:.2f}×"
+                if roi_target is not None
+                else "- ROI Target: N/A"
+            ),
+            f"- Risk Threshold: P(ROI≥target) ≥ {fmt_prob2(risk_threshold)}",
+            "",
+        ]
+    )
+
+    md_lines.extend(
+        [
+            "## Lot Overview",
+            "",
+            f"- **Total Items:** {item_count:,}",
+            f"- **Estimated Total Value (μ):** {fmt_currency(total_mu)}",
+            f"- **Estimated Total Value (P50):** {fmt_currency(total_p50)}",
+            f"- **Average 60-day Sell Probability:** {fmt_pct(avg_sell_p60)}",
+        ]
+    )
+
+    md_lines.extend(
+        [
+            "",
+            "## Optimization Parameters",
+            "",
+            (
+                f"- **ROI Target:** {roi_target:.2f}×"
+                if roi_target is not None
+                else "- **ROI Target:** N/A"
+            ),
+            f"- **Risk Threshold:** P(ROI≥target) ≥ {fmt_prob2(risk_threshold)}",
+            "",
+            "## Investment Decision",
+            "",
+        ]
+    )
+
     # Investment recommendation
-    if meets_constraints:
+    if meets_constraints is True:
         md_lines.extend(
             [
                 "🟢 **PROCEED** - This lot meets the configured investment criteria.",
                 "",
                 f"The recommended bid of {fmt_currency(recommended_bid)} has a "
                 f"{fmt_pct(prob_roi_ge_target)} probability of achieving the target ROI of "
-                f"{roi_target}, which exceeds the risk threshold of {risk_threshold}.",
+                f"{roi_target if roi_target is not None else 'N/A'}×, which exceeds the Risk Threshold of "
+                f"{fmt_prob2(risk_threshold)}.",
+            ]
+        )
+    elif meets_constraints is False:
+        md_lines.extend(
+            [
+                "🔴 **PASS** - This lot does not meet the configured investment criteria.",
+                "",
+                f"No feasible bid was found that achieves the target ROI of "
+                f"{roi_target if roi_target is not None else 'N/A'}× with probability ≥ "
+                f"{fmt_prob2(risk_threshold)}. Consider lowering the ROI Target "
+                "or Risk Threshold, or look for a different lot.",
             ]
         )
     else:
         md_lines.extend(
             [
-                "🔴 **PASS** - This lot does not meet the configured investment criteria.",
+                "🟡 **REVIEW** - Unable to determine investment recommendation.",
                 "",
-                f"No feasible bid was found that achieves the target ROI of {roi_target} "
-                f"with probability ≥ {risk_threshold}. Consider lowering the ROI target "
-                "or risk threshold, or look for a different lot.",
+                "Missing constraint evaluation data. Please check input parameters and optimizer configuration.",
             ]
         )
 
-    # Add artifact references if provided
-    if any([sweep_csv, sweep_png, evidence_jsonl]):
-        md_lines.extend(
-            [
-                "",
-                "## Supporting Artifacts",
-                "",
-            ]
-        )
+    # Add artifact references only if files exist
+    show_artifacts = False
+    if sweep_csv and Path(sweep_csv).exists():
+        show_artifacts = True
+    if sweep_png and Path(sweep_png).exists():
+        show_artifacts = True
+    if evidence_jsonl and Path(evidence_jsonl).exists():
+        show_artifacts = True
 
-        if sweep_csv:
+    if show_artifacts:
+        md_lines.extend(["", "## Supporting Artifacts", ""])
+        if sweep_csv and Path(sweep_csv).exists():
             md_lines.append(f"- **Bid Sensitivity Analysis:** `{sweep_csv}`")
-        if sweep_png:
+        if sweep_png and Path(sweep_png).exists():
             md_lines.append(f"- **Bid Sensitivity Chart:** `{sweep_png}`")
-        if evidence_jsonl:
+        if evidence_jsonl and Path(evidence_jsonl).exists():
             md_lines.append(f"- **Optimization Audit Trail:** `{evidence_jsonl}`")
 
     md_lines.extend(

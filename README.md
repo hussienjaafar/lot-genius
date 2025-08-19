@@ -396,7 +396,7 @@ Random seed & tolerance controllable.
 
 Optimizer JSON is compact by default (no per-simulation arrays). Use `--include-samples` to include `roi`, `revenue`, and `cash_60d` arrays; files may be large for big `--sims`.
 
-**NOTE:** ROI target is configurable (not hard-coded). Defaults reflect your "≥1.25× within ~60 days" minimum.
+**NOTE:** ROI Target is configurable (not hard-coded). Defaults reflect your "≥1.25× within ~60 days" minimum.
 
 ### Niceties (Step 9.1)
 
@@ -469,6 +469,8 @@ Generate a concise, decision-ready Markdown report that consolidates per-unit an
 - Emits a Markdown report (always). Optionally also HTML and PDF.
 - Optionally references the sweep CSV/PNG and optimizer evidence NDJSON.
 
+If `meets_constraints` is absent, the report shows **N/A** and sets decision to **🟡 REVIEW**. **ROI Target** / **Risk Threshold** are taken from `opt.json` or, if missing, from the last record in `--evidence-jsonl` (only when the file is provided and exists). "Supporting Artifacts" are included only when the referenced files exist. The "Optimization Parameters" section always appears with N/A fallbacks when values are missing.
+
 ```bash
 # Generate markdown report with artifact references
 python -m backend.cli.report_lot \
@@ -501,9 +503,14 @@ make report-lot
 
 - **Executive Summary:** Recommended bid, ROI, probability of success, 60-day cash recovery
 - **Lot Overview:** Item count, total estimated value, average sell-through probability
-- **Optimization Parameters:** ROI target, risk threshold
+- **Optimization Parameters:** ROI Target, Risk Threshold
 - **Investment Decision:** Clear proceed/pass recommendation with reasoning
 - **Supporting Artifacts:** References to sweep analysis, charts, and audit trails (if provided)
+
+**Contents:**
+
+- Now always shows 'Meets constraints' as Yes/No/N/A
+- ROI Target and Risk Threshold are highlighted near the top when present
 
 **Features:**
 
@@ -519,3 +526,4 @@ make report-lot
 - PDF conversion additionally requires LaTeX (e.g., `pdflatex`)
 - If pandoc is unavailable, conversion is skipped with a warning (markdown is always generated)
 - Report focuses on investment decision; detailed technical analysis is available in referenced artifacts
+- Report now renders Meets All Constraints as Yes/No/N/A when missing, and wires ROI Target/Risk Threshold from optimizer JSON (or evidence NDJSON if provided)

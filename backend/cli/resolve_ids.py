@@ -40,6 +40,13 @@ def main(
     out_enriched.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(out_enriched, index=False)
     write_ledger_jsonl(ledger, out_ledger)
+
+    # Compute source counts
+    src_counts = {}
+    if "resolved_source" in df.columns:
+        vc = df["resolved_source"].dropna().value_counts()
+        src_counts = {str(k): int(v) for k, v in vc.items()}
+
     payload = {
         "input": str(csv_path),
         "rows": int(df.shape[0]),
@@ -47,6 +54,7 @@ def main(
         "unresolved": int(df["asin"].isna().sum()),
         "enriched_path": str(out_enriched),
         "ledger_path": str(out_ledger),
+        "source_counts": src_counts,
     }
     click.echo(json.dumps(payload, indent=2))
 

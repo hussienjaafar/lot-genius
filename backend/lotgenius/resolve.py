@@ -30,8 +30,11 @@ def _id_kind(x: Optional[str]) -> str:
     if not x:
         return "none"
     s = x.strip()
-    if re.match(r"^B0[A-Z0-9]{8}$", s.upper()):
-        return "asin"
+    u = s.upper()
+    if re.match(r"^B0[A-Z0-9]{8}$", u):
+        return "asin_b0"
+    if re.match(r"^[A-Z0-9]{10}$", u):
+        return "asin_generic"
     if re.match(r"^\d{8,14}$", s):
         return "code"
     return "unknown"
@@ -60,10 +63,15 @@ def resolve_ids(
         kind = _id_kind(ident)
 
         # Case 1: already an ASIN-like id
-        if kind == "asin":
+        if kind in ("asin_b0", "asin_generic"):
             asin = ident.strip().upper()
             df.at[idx, "asin"] = asin
             df.at[idx, "resolved_source"] = "direct:asin"
+            meta_note = (
+                "provided ASIN (B0 pattern)"
+                if kind == "asin_b0"
+                else "provided ASIN (generic 10-char)"
+            )
             ledger.append(
                 EvidenceRecord(
                     row_index=int(idx),
@@ -73,7 +81,7 @@ def resolve_ids(
                     ok=True,
                     match_asin=asin,
                     cached=True,
-                    meta={"note": "provided ASIN"},
+                    meta={"note": meta_note},
                     timestamp=datetime.now(timezone.utc).isoformat(),
                 )
             )

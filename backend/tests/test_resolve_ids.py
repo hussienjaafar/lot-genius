@@ -1,10 +1,9 @@
 import json
 from pathlib import Path
 
+from cli.resolve_ids import main as resolve_cli
 from click.testing import CliRunner
 from lotgenius.resolve import resolve_ids
-
-from backend.cli.resolve_ids import main as resolve_cli
 
 
 def _fake_client_init(self, cfg=None):
@@ -86,3 +85,10 @@ def test_resolve_cli_summary(monkeypatch, tmp_path):
         if line.strip()
     ]
     assert lines and json.loads(lines[0])
+    assert "source_counts" in payload and isinstance(payload["source_counts"], dict)
+    # with our patched Keepa, at least one keepa:code should appear
+    if payload["resolved"] >= 1:
+        assert any(
+            k.startswith("keepa:code") or k == "keepa:code"
+            for k in payload["source_counts"].keys()
+        )

@@ -24,6 +24,10 @@ def test_extract_primary_asin_fixture():
 
 
 def test_lookup_by_code_caches(monkeypatch, tmp_path):
+    # Use isolated cache path for test
+    cache_path = tmp_path / "keepa_cache.sqlite"
+    monkeypatch.setattr("lotgenius.keepa_client._DB_PATH", cache_path)
+
     cfg = KeepaConfig(api_key="FAKE_KEY", ttl_days=1)
     client = KeepaClient(cfg)
     payload = json.loads(

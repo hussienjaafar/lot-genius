@@ -19,7 +19,9 @@ _lock = threading.Lock()
 
 
 def _db():
-    conn = sqlite3.connect(_DB_PATH)
+    conn = sqlite3.connect(_DB_PATH, check_same_thread=False)
+    conn.execute("PRAGMA journal_mode=WAL;")
+    conn.execute("PRAGMA busy_timeout=5000;")
     conn.execute(
         """CREATE TABLE IF NOT EXISTS cache (
         k TEXT PRIMARY KEY,

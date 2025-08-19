@@ -1,9 +1,8 @@
 import json
 from pathlib import Path
 
+from cli.validate_manifest import main as cli
 from click.testing import CliRunner
-
-from backend.cli.validate_manifest import main as cli
 
 
 def test_cli_includes_pct_and_failures(tmp_path: Path):
@@ -21,9 +20,8 @@ def test_cli_includes_pct_and_failures(tmp_path: Path):
 
 
 def test_cli_strict_failure(tmp_path):
+    from cli.validate_manifest import main as cli
     from click.testing import CliRunner
-
-    from backend.cli.validate_manifest import main as cli
 
     bad = "data/golden_manifests/bad_low_coverage.csv"
     runner = CliRunner()
@@ -39,9 +37,8 @@ def test_cli_strict_failure(tmp_path):
 def test_cli_good_json_parseable_with_pct_and_bool_success():
     import json
 
+    from cli.validate_manifest import main as cli
     from click.testing import CliRunner
-
-    from backend.cli.validate_manifest import main as cli
 
     runner = CliRunner()
     res = runner.invoke(cli, ["data/golden_manifests/01_basic.csv", "--show-coverage"])

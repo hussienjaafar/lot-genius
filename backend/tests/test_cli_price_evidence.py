@@ -2,7 +2,7 @@ import gzip
 import json
 
 import pandas as pd
-from cli.estimate_price import main as cli
+from backend.cli.estimate_price import main as cli
 from click.testing import CliRunner
 
 

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import pandas as pd
 
+from .schema import ConditionEnum
+
 try:
     import great_expectations as ge
 
@@ -10,7 +12,7 @@ except Exception:
     ge = None
     HAS_GE = False
 
-ALLOWED_CONDITIONS = {"New", "LikeNew", "UsedGood", "UsedFair", "Salvage"}
+ALLOWED_CONDITIONS = {e.value for e in ConditionEnum}
 
 
 def _pandas_checks(df: pd.DataFrame) -> list[dict]:

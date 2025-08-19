@@ -35,6 +35,7 @@ cp infra/.env.example .env
 - `SELLTHROUGH_HORIZON_DAYS` (default 60)
 - `RISK_THRESHOLD` (default 0.80)
 - `CASHFLOOR` (default 0)
+- `HEADER_COVERAGE_MIN` (default 0.70) — minimum header coverage for manifest validation
 
 ## Data Sources
 
@@ -78,6 +79,8 @@ python -m backend.cli.validate_manifest data/golden_manifests/01_basic.csv
 
 # Validate the whole golden set
 make validate-golden
+# Validate only good files (skip bad manifests)
+make validate-golden-good
 ```
 
 ## Next Steps

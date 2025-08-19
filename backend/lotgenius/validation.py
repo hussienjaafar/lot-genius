@@ -5,11 +5,9 @@ from pathlib import Path
 
 import pandas as pd
 
+from .config import settings
 from .ge_suite import run_ge_checks
 from .headers import map_headers
-
-# Thresholds (tunable later via config if needed)
-HEADER_COVERAGE_MIN = 0.70  # ≥70% of source headers should map to some canonical field
 
 CANONICAL_COLS = {
     "sku_local",
@@ -51,7 +49,7 @@ def validate_manifest_csv(
     csv_path: str | Path, fuzzy_threshold: int = 88
 ) -> ValidationReport:
     p = Path(csv_path)
-    df = pd.read_csv(p)
+    df = pd.read_csv(p, encoding="utf-8-sig")
 
     # Compute mapping and coverage
     mapping, unmapped = map_headers(list(df.columns), threshold=fuzzy_threshold)
@@ -72,12 +70,12 @@ def validate_manifest_csv(
     ge = run_ge_checks(mapped_df)
 
     # Decide pass/fail
-    passed = (header_coverage >= HEADER_COVERAGE_MIN) and ge["success"]
+    passed = (header_coverage >= settings.HEADER_COVERAGE_MIN) and ge["success"]
 
     notes: list[str] = []
-    if header_coverage < HEADER_COVERAGE_MIN:
+    if header_coverage < settings.HEADER_COVERAGE_MIN:
         notes.append(
-            f"Header coverage {header_coverage:.0%} below threshold {HEADER_COVERAGE_MIN:.0%}."
+            f"Header coverage {header_coverage:.0%} below threshold {settings.HEADER_COVERAGE_MIN:.0%}."
         )
     if not ge["success"]:
         bad = [r for r in ge["results"] if not r["success"]]

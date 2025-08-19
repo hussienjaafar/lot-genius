@@ -21,6 +21,11 @@ class Settings(BaseSettings):
     # External services (Keepa-only for now)
     KEEPA_KEY: str | None = None
 
+    # Header mapping validation
+    HEADER_COVERAGE_MIN: float = Field(
+        0.70, description="Minimum header coverage for validation"
+    )
+
     class Config:
         env_file = ".env"
         extra = "ignore"

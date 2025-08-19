@@ -123,6 +123,18 @@ validate-golden:
 	  $(PYTHON) -m backend.cli.validate_manifest "$$f" --strict || exit 1; \
 	done
 
+## Validate only good golden manifests (skip bad files)
+validate-golden-good:
+	@echo "Validating good golden manifests (skipping bad files)..."
+	@for f in data/golden_manifests/*.csv; do \
+	  if [[ ! $$f =~ .*bad.* ]]; then \
+	    echo "Validating $$f"; \
+	    $(PYTHON) -m backend.cli.validate_manifest "$$f" --strict || exit 1; \
+	  else \
+	    echo "Skipping bad file $$f"; \
+	  fi; \
+	done
+
 ## Show available commands
 help:
 	@echo "Available commands:"
@@ -137,6 +149,7 @@ help:
 	@echo "  make map-preview-strict - Preview with strict duplicate checking"
 	@echo "  make validate-one - Validate single golden manifest"
 	@echo "  make validate-golden - Validate all golden manifests"
+	@echo "  make validate-golden-good - Validate good golden manifests (skip bad files)"
 	@echo "  make run-dev     - Start development server"
 	@echo "  make run-prod    - Start production server"
 	@echo "  make docker-build - Build Docker image"

@@ -51,22 +51,24 @@ def run_ge_checks(df: pd.DataFrame) -> dict:
         gdf = ge.from_pandas(df.copy())
         results = []
         r = gdf.expect_table_row_count_to_be_between(min_value=1)
-        results.append({"expectation": "row_count>=1", "success": r.success})
+        results.append({"expectation": "row_count>=1", "success": bool(r.success)})
         if "quantity" in gdf.columns:
             r = gdf.expect_column_values_to_be_between(
                 "quantity", min_value=1, strict_min=False
             )
-            results.append({"expectation": "quantity>0", "success": r.success})
+            results.append({"expectation": "quantity>0", "success": bool(r.success)})
         if "condition" in gdf.columns:
             r = gdf.expect_column_values_to_be_in_set(
                 "condition", list(ALLOWED_CONDITIONS)
             )
-            results.append({"expectation": "condition in enum", "success": r.success})
+            results.append(
+                {"expectation": "condition in enum", "success": bool(r.success)}
+            )
         if "msrp" in gdf.columns:
             non_null = gdf["msrp"].dropna()
             if not non_null.empty:
                 r = gdf.expect_column_values_to_be_between("msrp", min_value=0.0)
-                results.append({"expectation": "msrp>=0", "success": r.success})
+                results.append({"expectation": "msrp>=0", "success": bool(r.success)})
     else:
         results = _pandas_checks(df.copy())
 

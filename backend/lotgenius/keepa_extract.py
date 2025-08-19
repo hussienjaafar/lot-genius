@@ -54,7 +54,7 @@ def _maybe_cents_to_unit(
                 a = v_new / 100.0
                 b = v_used / 100.0
                 scaled = True
-                rule = "heuristic:int-like>=1000 or >=200 → divide by 100"
+                rule = "heuristic:int-like>=1000 or >=200 -> divide by 100"
         else:
             # If only one exists and it strongly looks like cents
             only = v_new if v_new is not None else v_used
@@ -64,7 +64,7 @@ def _maybe_cents_to_unit(
                 if v_used is not None:
                     b = v_used / 100.0
                 scaled = True
-                rule = "heuristic:int-like>=1000 or >=200 → divide by 100"
+                rule = "heuristic:int-like>=1000 or >=200 -> divide by 100"
 
     return a, b, scaled, rule
 

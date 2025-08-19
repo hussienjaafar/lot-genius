@@ -211,11 +211,11 @@ def _mk_markdown(items, opt, sweep_csv=None, sweep_png=None, evidence_jsonl=None
         [
             "",
             (
-                f"- ROI Target: {roi_target:.2f}×"
+                f"- ROI Target: **{roi_target:.2f}×**"
                 if roi_target is not None
-                else "- ROI Target: N/A"
+                else "- ROI Target: **N/A**"
             ),
-            f"- Risk Threshold: P(ROI≥target) ≥ {fmt_prob2(risk_threshold)}",
+            f"- Risk Threshold: **P(ROI≥target) ≥ {fmt_prob2(risk_threshold)}**",
             "",
         ]
     )

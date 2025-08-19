@@ -80,9 +80,11 @@ def test_report_lot_basic(tmp_path, sample_items, sample_optimizer):
     )  # meets constraints (emoji formatter in executive summary)
     assert "ROI Target:" in md_content  # Executive Summary bullets when present
     assert "Risk Threshold:" in md_content  # Executive Summary bullets when present
-    # Verify Executive Summary bullets appear after the bold lines and before Lot Overview
-    assert "- ROI Target: 1.25×" in md_content
-    assert "- Risk Threshold: P(ROI≥target) ≥ 0.80" in md_content
+    # Verify Executive Summary bullets appear with bold formatting
+    assert "- ROI Target: **" in md_content
+    assert "- Risk Threshold: **" in md_content
+    assert "- ROI Target: **1.25×**" in md_content
+    assert "- Risk Threshold: **P(ROI≥target) ≥ 0.80**" in md_content
 
     # Check JSON output
     output_data = json.loads(result.output)

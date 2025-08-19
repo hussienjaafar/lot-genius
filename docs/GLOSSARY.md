@@ -34,8 +34,8 @@
 
 **Sell-through horizon:** Time window for expected sales (default 60 days).
 
-**ROI target:** Minimum acceptable return on investment (default 1.25x).
+**ROI Target:** Minimum acceptable return on investment (default 1.25x).
 
-**Risk threshold:** Minimum probability of achieving ROI target (default 80%).
+**Risk Threshold:** Minimum probability of achieving ROI Target (default 80%).
 
 **Cash floor:** Minimum expected cash recovery by horizon date.

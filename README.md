@@ -214,3 +214,31 @@ make resolve-with-stats
 - `stats_columns_present`: list of stats columns that were added to the output CSV
 - Price medians are auto-normalized from cents when detected; a `scaled_from_cents` boolean is recorded in the ledger's `keepa:stats.meta.compact`.
 - CLI summary includes `with_stats_requested`, `with_stats`, and `stats_reason` to clarify when stats were requested but skipped (e.g., `--no-network`).
+
+## Step 7 — Price Estimation (Ensemble)
+
+Compute per-item price distributions using available sources (Keepa today), with inverse-variance weighting and source priors.
+
+```bash
+# Input: enriched CSV from Step 6 (has keepa_* columns)
+python -m backend.cli.estimate_price data/out/resolved_with_stats.csv \
+  --cv-fallback 0.20 \
+  --prior-keepa 0.50 --prior-ebay 0.35 --prior-other 0.15 \
+  --out-csv data/out/estimated_prices.csv \
+  --ledger-out data/evidence/price_ledger.jsonl
+
+# Or use the Makefile shortcut
+make estimate-prices
+```
+
+**New columns:**
+
+- `est_price_mu`, `est_price_sigma`, `est_price_p5`, `est_price_p50`, `est_price_p95`
+- `est_price_sources` (JSON array with per-source μ, cv, n, prior, recency, weight)
+
+**Notes:**
+
+- Currently uses Keepa medians (new vs used) and offers as a strength proxy
+- CV fallback defaults to 0.20; adjust per category once you have richer data
+- Percentiles use a normal approximation and are clipped at 0
+- Condition-aware: prefers `new` median for New/Like-New items, `used` median otherwise

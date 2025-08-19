@@ -17,3 +17,19 @@ def test_cli_includes_pct_and_failures(tmp_path: Path):
     assert isinstance(payload["failed_expectations"], list)
     # golden should have no failed expectations
     assert not payload["failed_expectations"]
+
+
+def test_cli_strict_failure(tmp_path):
+    from click.testing import CliRunner
+
+    from backend.cli.validate_manifest import main as cli
+
+    bad = "data/golden_manifests/bad_low_coverage.csv"
+    runner = CliRunner()
+    res = runner.invoke(cli, [bad, "--strict"])
+    assert res.exit_code == 2
+    # Should still emit JSON we can parse
+    import json
+
+    payload = json.loads(res.output)
+    assert payload["passed"] is False

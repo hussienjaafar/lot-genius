@@ -17,24 +17,26 @@ ALLOWED_CONDITIONS = {e.value for e in ConditionEnum}
 
 def _pandas_checks(df: pd.DataFrame) -> list[dict]:
     out = []
-    out.append({"expectation": "row_count>=1", "success": len(df) >= 1})
+    out.append({"expectation": "row_count>=1", "success": bool(len(df) >= 1)})
     if "quantity" in df.columns:
         q = pd.to_numeric(df["quantity"], errors="coerce")
         out.append(
             {
                 "expectation": "quantity>0",
-                "success": (q.dropna() > 0).all() if not q.dropna().empty else True,
+                "success": bool(
+                    (q.dropna() > 0).all() if not q.dropna().empty else True
+                ),
             }
         )
     if "condition" in df.columns:
         ok = df["condition"].dropna().isin(ALLOWED_CONDITIONS).all()
-        out.append({"expectation": "condition in enum", "success": ok})
+        out.append({"expectation": "condition in enum", "success": bool(ok)})
     if "msrp" in df.columns:
         m = pd.to_numeric(df["msrp"], errors="coerce").dropna()
         out.append(
             {
                 "expectation": "msrp>=0",
-                "success": (m >= 0).all() if not m.empty else True,
+                "success": bool((m >= 0).all() if not m.empty else True),
             }
         )
     return out

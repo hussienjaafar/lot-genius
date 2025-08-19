@@ -241,7 +241,7 @@ def test_category_fallback_to_default():
     assert "p5_floored" in meta
 
 
-def test_used_category_fallback_written(tmp_path):
+def test_used_category_written_and_meta_present(tmp_path):
     """Test used category fallback is written correctly and evidence meta always includes keys."""
     import json
 
@@ -267,5 +267,4 @@ def test_used_category_fallback_written(tmp_path):
     assert ev.meta["category_requested"] == "widgets_not_in_priors"
     assert ev.meta["category_used"] == "default"
     assert ev.meta["category_fallback"] is True
-    # new uniform keys present
     assert "est_price_p5" in ev.meta and "est_price_p5_floored" in ev.meta

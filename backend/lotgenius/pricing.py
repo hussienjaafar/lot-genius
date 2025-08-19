@@ -323,11 +323,12 @@ def estimate_prices(
         )
         mu, sigma, meta = triangulate_price(srcs)
 
-        # Track category fallback for evidence - compute unconditionally
+        # Derive requested and used keys explicitly
         requested_key = _category_key_from_row(row)
+        cat_priors = category_priors or {}
         used_key = (
             requested_key
-            if requested_key and requested_key in category_priors
+            if (requested_key and requested_key in cat_priors)
             else "default"
         )
 
@@ -356,24 +357,23 @@ def estimate_prices(
         else:
             ok = False
 
-        # Evidence - build enhanced meta tied to ok=True, not mu/sigma guard
-        evidence_meta = {"triangulation": meta}
+        # Build evidence meta explicitly - no overwrites
         if ok:
-            evidence_meta.update(
-                {
-                    "category_requested": requested_key,
-                    "category_used": used_key,
-                    "category_fallback": bool(used_key != requested_key),
-                    # Unified naming - duplicate "est_" keys for uniform access
-                    "est_price_p5": p5,
-                    "est_price_p5_floored": (
-                        float(p5_floored) if p5_floored is not None else None
-                    ),
-                    # Keep backward-compat keys
-                    "p5": p5,
-                    "p5_floored": float(p5_floored) if p5_floored is not None else None,
-                }
-            )
+            evidence_meta = {
+                "triangulation": meta,  # keep existing triangulation detail
+                "category_requested": requested_key,
+                "category_used": used_key,
+                "category_fallback": bool(used_key != requested_key),
+                # uniform naming for UI + backward-compat
+                "est_price_p5": p5,
+                "est_price_p5_floored": (
+                    float(p5_floored) if p5_floored is not None else None
+                ),
+                "p5": p5,
+                "p5_floored": (float(p5_floored) if p5_floored is not None else None),
+            }
+        else:
+            evidence_meta = {"triangulation": meta}
 
         ledger.append(
             EvidenceRecord(

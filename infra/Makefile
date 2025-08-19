@@ -140,6 +140,16 @@ validate:
 	@if [ -z "$(FILE)" ]; then echo 'Usage: make validate FILE=path/to.csv'; exit 2; fi
 	$(PYTHON) -m backend.cli.validate_manifest $(FILE) --strict
 
+## Parse and clean manifest (explode to CSV)
+parse-one:
+	@echo "Running parser with explode to CSV..."
+	$(PYTHON) -m backend.cli.parse_clean backend/tests/fixtures/manifest_multiqty.csv --explode --out csv --output /tmp/lotgenius_exploded.csv
+
+## Parse and clean manifest (explode to JSON)
+parse-json:
+	@echo "Running parser with explode to JSON..."
+	$(PYTHON) -m backend.cli.parse_clean backend/tests/fixtures/manifest_multiqty.csv --explode --out json --output /tmp/lotgenius_exploded.json
+
 ## Show available commands
 help:
 	@echo "Available commands:"
@@ -156,6 +166,8 @@ help:
 	@echo "  make validate-golden - Validate all golden manifests"
 	@echo "  make validate-golden-good - Validate good golden manifests (skip bad files)"
 	@echo "  make validate FILE=path/to.csv - Validate single file (strict)"
+	@echo "  make parse-one   - Parse and explode manifest to CSV"
+	@echo "  make parse-json  - Parse and explode manifest to JSON"
 	@echo "  make run-dev     - Start development server"
 	@echo "  make run-prod    - Start production server"
 	@echo "  make docker-build - Build Docker image"

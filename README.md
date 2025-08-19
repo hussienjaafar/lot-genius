@@ -95,6 +95,19 @@ make validate FILE=data/golden_manifests/01_basic.csv
 python -m backend.cli.validate_manifest data/golden_manifests/01_basic.csv --show-coverage
 ```
 
+## Parse → Clean → Explode (Step 4)
+
+```bash
+# From repo root
+python -m pip install -e backend
+
+# Run parser (map→clean→explode) and write CSV
+python -m backend.cli.parse_clean backend/tests/fixtures/manifest_multiqty.csv --explode --out csv --output /tmp/lotgenius_exploded.csv
+
+# JSON summary only (no file written)
+python -m backend.cli.parse_clean backend/tests/fixtures/manifest_multiqty.csv --no-explode
+```
+
 ## Next Steps
 
 - ✅ Canonical schema & header mapping

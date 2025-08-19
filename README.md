@@ -306,3 +306,48 @@ make estimate-prices-with-floors
 | `est_price_floor_rule` | string\|null | Applied floor rule ("category_abs", "category_frac", "salvage", null) |
 | `est_price_category`   | string\|null | Category used for floor lookup ("default" if fallback)                |
 | `sources`              | array        | Parsed price sources with weights and metadata                        |
+
+## Step 8 — Sell-through ≤60 days (proxy survival)
+
+Compute per-item P(sold ≤ 60d) "p60" using a conservative, explainable proxy survival model derived from:
+
+- Keepa rank (if present) → daily sales via power-law mapping
+- Offers saturation (Keepa offers count)
+- Price-to-market z-score using our estimated μ, σ and a chosen list price
+
+```bash
+# Input: enriched CSV from Step 7 (has est_price_* columns)
+python -m backend.cli.estimate_sell data/out/estimated_prices.csv \
+  --out-csv data/out/estimated_sell.csv \
+  --evidence-out data/evidence/sell_evidence.jsonl \
+  --days 60 --list-price-mode p50 --list-price-multiplier 1.0
+
+# Or use the Makefile shortcut
+make estimate-sell
+```
+
+**New columns:**
+
+- `sell_p60` — P(sold ≤ 60 days) survival probability
+- `sell_hazard_daily` — Daily hazard rate (λ)
+- `sell_ptm_z` — Price-to-market z-score at chosen list price
+- `sell_rank_used` — Sales rank used for calculation
+- `sell_offers_used` — Offers count used for saturation
+
+**Features:**
+
+- **Rank→sales power law:** Configurable via `backend/lotgenius/data/rank_to_sales.example.json`
+- **Offers saturation:** Higher offer count reduces per-item sell probability
+- **Price sensitivity:** Higher prices reduce sell probability via exp(-β·z) factor
+- **Evidence export:** NDJSON with all inputs & parameters for transparency
+- **Conservative defaults:** Tunable coefficients for different risk profiles
+
+**Configuration:**
+
+The rank-to-sales mapping uses power law: `daily_sales = a * rank^b`, bounded by min/max rank limits.
+
+**Notes:**
+
+This is a scaffold; coefficients are tunable. Later steps will calibrate from backtests (isotonic reliability curves & Brier score).
+
+No hard-coded ROI logic here; the optimizer will consume `sell_p60` downstream.

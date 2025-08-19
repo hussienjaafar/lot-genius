@@ -180,6 +180,10 @@ estimate-prices:
 estimate-prices-with-floors:
 	$(PYTHON) -m backend.cli.estimate_price data/out/resolved_with_stats.csv --out-csv data/out/estimated_prices_floored.csv --ledger-out data/evidence/price_ledger_floored.jsonl --category-priors backend/lotgenius/data/category_priors.example.json --salvage-floor-frac 0.10 --price-evidence-out data/out/price_evidence.ndjson --gzip-evidence
 
+## Estimate sell-through ≤60 days (Step 8)
+estimate-sell:
+	$(PYTHON) -m backend.cli.estimate_sell data/out/estimated_prices.csv --out-csv data/out/estimated_sell.csv --evidence-out data/evidence/sell_evidence.jsonl --days 60 --list-price-mode p50 --list-price-multiplier 1.0
+
 ## Show available commands
 help:
 	@echo "Available commands:"
@@ -205,6 +209,7 @@ help:
 	@echo "  make resolve-with-stats - Resolve IDs with Keepa stats enrichment"
 	@echo "  make estimate-prices - Estimate prices from enriched CSV (Step 7)"
 	@echo "  make estimate-prices-with-floors - Estimate prices with category floors and price evidence (Step 7.1)"
+	@echo "  make estimate-sell - Estimate sell-through ≤60 days (Step 8)"
 	@echo "  make run-dev     - Start development server"
 	@echo "  make run-prod    - Start production server"
 	@echo "  make docker-build - Build Docker image"

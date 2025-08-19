@@ -41,11 +41,11 @@ def test_compact_output_without_flag(tmp_path):
     )
     assert res.exit_code == 0
     data = json.loads(outp.read_text(encoding="utf-8"))
-    assert "revenue" not in data and "cash_60d" not in data
+    assert "revenue" not in data and "cash_60d" not in data and "roi" not in data
 
 
 def test_full_output_with_flag(tmp_path):
-    """Test --include-samples includes revenue and cash_60d arrays."""
+    """Test --include-samples includes revenue, cash_60d, and roi arrays."""
     df = _mkdf()
     in_csv = tmp_path / "in.csv"
     outp = tmp_path / "opt_full.json"
@@ -67,5 +67,5 @@ def test_full_output_with_flag(tmp_path):
     )
     assert res.exit_code == 0
     data = json.loads(outp.read_text(encoding="utf-8"))
-    assert "revenue" in data and "cash_60d" in data
-    assert len(data["revenue"]) > 0 and len(data["cash_60d"]) > 0
+    assert "revenue" in data and "cash_60d" in data and "roi" in data
+    assert len(data["revenue"]) > 0 and len(data["cash_60d"]) > 0 and len(data["roi"]) > 0

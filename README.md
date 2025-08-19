@@ -394,6 +394,8 @@ Random seed & tolerance controllable.
 
 `cash_60d_p5` available for risk-aware cash constraints via `--min-cash-60d-p5`.
 
+Optimizer JSON is compact by default (no per-simulation arrays). Use `--include-samples` to include `roi`, `revenue`, and `cash_60d` arrays; files may be large for big `--sims`.
+
 **NOTE:** ROI target is configurable (not hard-coded). Defaults reflect your "≥1.25× within ~60 days" minimum.
 
 ### Niceties (Step 9.1)

@@ -202,7 +202,7 @@ def main(
     # Prepare result for JSON output
     out_dict = dict(result)
     if not include_samples:
-        for k in ("revenue", "cash_60d"):
+        for k in ("revenue", "cash_60d", "roi"):
             out_dict.pop(k, None)
     json_result = _to_json_serializable(out_dict)
 

@@ -17,13 +17,13 @@ SELL_EVENT_SOURCE = "sell:estimate"
 
 def load_rank_to_sales(path: Optional[str] = None) -> Dict[str, Dict[str, float]]:
     if not path:
-        return dict(_DEFAULT_RANK_TO_SALES)
+        return _DEFAULT_RANK_TO_SALES.copy()
     try:
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
-        return data if isinstance(data, dict) else dict(_DEFAULT_RANK_TO_SALES)
+        return data if isinstance(data, dict) else _DEFAULT_RANK_TO_SALES.copy()
     except Exception:
-        return dict(_DEFAULT_RANK_TO_SALES)
+        return _DEFAULT_RANK_TO_SALES.copy()
 
 
 def _best_rank_from_row(row: pd.Series) -> Optional[float]:
@@ -108,6 +108,7 @@ def estimate_sell_p60(
     beta_price: float = 0.8,
     hazard_cap: float = 1.0,
     cv_fallback: float = 0.20,
+    baseline_daily_sales: float = 0.0,
 ) -> Tuple[pd.DataFrame, List[Dict[str, Any]]]:
     """
     Adds columns:
@@ -131,7 +132,7 @@ def estimate_sell_p60(
         mu = row.get("est_price_mu")
         sigma = row.get("est_price_sigma")
         p50 = row.get("est_price_p50") or row.get(
-            "est_price_p50"
+            "est_price_median"
         )  # tolerate either naming
         # pick list price
         if list_price_mode == "mu":
@@ -158,7 +159,7 @@ def estimate_sell_p60(
         daily_sales_market = (
             _daily_sales_from_rank(rank, mapping.get("default", {}))
             if rank is not None
-            else 0.0
+            else float(baseline_daily_sales)
         )
         # hazard per item
         lam = _hazard_per_item(daily_sales_market, offers, pf, cap=hazard_cap)
@@ -192,6 +193,7 @@ def estimate_sell_p60(
                     "price_beta": beta_price,
                     "daily_sales_market": daily_sales_market,
                     "hazard_daily": lam,
+                    "baseline_daily_sales": baseline_daily_sales,
                     "rank_to_sales": mapping.get("default", {}),
                 },
                 "timestamp": datetime.now(timezone.utc).isoformat(),

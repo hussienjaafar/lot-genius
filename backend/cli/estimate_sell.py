@@ -62,6 +62,12 @@ def _write_jsonl(records, out_path: Path, gzip_output=False):
 )
 @click.option("--hazard-cap", default=1.0, show_default=True, help="Daily hazard cap")
 @click.option("--cv-fallback", default=0.20, show_default=True)
+@click.option(
+    "--baseline-daily-sales",
+    default=0.0,
+    show_default=True,
+    help="Fallback daily market sales when rank is missing",
+)
 def main(
     input_csv,
     out_csv,
@@ -75,6 +81,7 @@ def main(
     beta_price,
     hazard_cap,
     cv_fallback,
+    baseline_daily_sales,
 ):
     """
     Compute per-item P(sold ≤ 60d) "p60" using a conservative, explainable proxy survival model.
@@ -92,6 +99,7 @@ def main(
         beta_price=float(beta_price),
         hazard_cap=float(hazard_cap),
         cv_fallback=float(cv_fallback),
+        baseline_daily_sales=float(baseline_daily_sales),
     )
 
     out_csv = Path(out_csv)
@@ -114,6 +122,7 @@ def main(
         "rank_to_sales_path": str(rank_to_sales),
         "beta_price": float(beta_price),
         "hazard_cap": float(hazard_cap),
+        "baseline_daily_sales": float(baseline_daily_sales),
     }
     click.echo(json.dumps(payload, indent=2))
 

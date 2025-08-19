@@ -91,3 +91,24 @@ def test_columns_added():
     assert out_df.loc[0, "sell_hazard_daily"] >= 0.0
     assert out_df.loc[0, "sell_rank_used"] == 50_000.0
     assert out_df.loc[0, "sell_offers_used"] == 5
+
+
+def test_missing_rank_uses_baseline_and_produces_probability():
+    """Test that missing rank doesn't NaN and respects baseline."""
+    import pandas as pd
+    from lotgenius.sell import estimate_sell_p60
+
+    df = pd.DataFrame(
+        [
+            {
+                "sku_local": "B1",
+                "keepa_offers_count": 3,
+                "est_price_mu": 50.0,
+                "est_price_sigma": 10.0,
+                "est_price_p50": 50.0,
+            }
+        ]
+    )  # no rank columns
+    out, _ = estimate_sell_p60(df, baseline_daily_sales=0.05)  # modest baseline
+    p = float(out.loc[0, "sell_p60"])
+    assert 0.0 < p <= 1.0

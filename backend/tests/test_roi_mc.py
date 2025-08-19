@@ -76,3 +76,38 @@ def test_missing_columns_handling():
     mc = simulate_lot_outcomes(df, bid=10.0, sims=100, seed=42)
     assert mc["items"] == 1  # Should not drop the item
     assert mc["roi_p50"] >= 0.0  # Should produce reasonable ROI
+
+
+def test_lot_fixed_cost_reduces_bid():
+    """Test that lot fixed cost reduces the recommended bid."""
+    df = _mkdf(n=8)
+    res1 = optimize_bid(
+        df, lo=0, hi=2000, sims=300, seed=1, roi_target=1.25, risk_threshold=0.8
+    )
+    res2 = optimize_bid(
+        df,
+        lo=0,
+        hi=2000,
+        sims=300,
+        seed=1,
+        roi_target=1.25,
+        risk_threshold=0.8,
+        lot_fixed_cost=200.0,
+    )
+    assert res2["bid"] <= res1["bid"]
+
+
+def test_cash_p5_constraint_bites():
+    """Test that cash P5 constraint is included in result."""
+    df = _mkdf(n=5, p=0.4)
+    res = optimize_bid(
+        df,
+        lo=0,
+        hi=2000,
+        sims=300,
+        seed=2,
+        roi_target=1.1,
+        risk_threshold=0.7,
+        min_cash_60d_p5=50.0,
+    )
+    assert "cash_60d_p5" in res

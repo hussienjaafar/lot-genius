@@ -364,6 +364,8 @@ No hard-coded ROI logic here; the optimizer will consume `sell_p60` downstream.
 
 Takes enriched, per-unit CSV with `est_price_mu`, `est_price_sigma`, and `sell_p60`. Simulates revenue under fees/costs, then finds the highest bid s.t. **P(ROI ≥ roi_target) ≥ risk_threshold** (and optional **expected cash ≤60d ≥ min_cash_60d**).
 
+**ROI = total revenue (sold net + salvage) / (bid + optional lot fixed cost)**
+
 **Run:**
 
 ```bash
@@ -384,7 +386,11 @@ make optimize-bid
 - `--shipping-per-order`, `--packaging-per-order`, `--refurb-per-order`
 - `--return-rate` (default 0.08)
 - `--min-cash-60d` (optional cash recovery constraint)
+- `--min-cash-60d-p5` (optional P5 cash recovery constraint for VaR)
+- `--lot-fixed-cost` (default 0.0): fixed cost added to bid in ROI denominator
 
 Random seed & tolerance controllable.
+
+`cash_60d_p5` available for risk-aware cash constraints via `--min-cash-60d-p5`.
 
 **NOTE:** ROI target is configurable (not hard-coded). Defaults reflect your "≥1.25× within ~60 days" minimum.

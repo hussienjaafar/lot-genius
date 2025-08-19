@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 DEFAULTS = dict(
-    horizon_days=60,
+    horizon_days=60,  # horizon governed upstream by sell_p60 (60d)
     roi_target=1.25,
     risk_threshold=0.80,  # P(ROI >= target)
     sims=2000,
@@ -55,6 +55,7 @@ def simulate_lot_outcomes(
     refurb_per_order: float = DEFAULTS["refurb_per_order"],
     return_rate: float = DEFAULTS["return_rate"],
     salvage_fee_pct: float = DEFAULTS["salvage_fee_pct"],
+    lot_fixed_cost: float = 0.0,
     seed: Optional[int] = 1337,
 ) -> Dict[str, Any]:
     """
@@ -72,16 +73,20 @@ def simulate_lot_outcomes(
     if n == 0:
         rng = np.random.default_rng(seed)
         roi = np.zeros(sims)
+        zeros_arr = np.zeros(sims)
         return dict(
             sims=int(sims),
             items=int(n),
             bid=float(bid),
-            revenue=np.zeros(sims),
-            cash_60d=np.zeros(sims),
+            revenue=zeros_arr,
+            cash_60d=zeros_arr,
             roi=roi,
             roi_p5=float(np.quantile(roi, 0.05)),
             roi_p50=float(np.quantile(roi, 0.50)),
             roi_p95=float(np.quantile(roi, 0.95)),
+            cash_60d_p5=float(np.quantile(zeros_arr, 0.05)),
+            cash_60d_p50=float(np.quantile(zeros_arr, 0.50)),
+            cash_60d_p95=float(np.quantile(zeros_arr, 0.95)),
             prob_roi_ge_target=None,  # computed by feasible()
         )
 
@@ -114,7 +119,7 @@ def simulate_lot_outcomes(
     revenue = np.maximum(0.0, net_sold) + np.maximum(0.0, salvage)
     cash_60d = np.maximum(0.0, net_sold)  # cash within the horizon excludes salvage
 
-    total_cost = float(bid)
+    total_cost = float(bid) + float(lot_fixed_cost)
     revenue_sum = revenue.sum(axis=1)
     cash_sum = cash_60d.sum(axis=1)
     roi = np.divide(
@@ -131,6 +136,9 @@ def simulate_lot_outcomes(
         roi_p5=float(np.quantile(roi, 0.05)),
         roi_p50=float(np.quantile(roi, 0.50)),
         roi_p95=float(np.quantile(roi, 0.95)),
+        cash_60d_p5=float(np.quantile(cash_sum, 0.05)),
+        cash_60d_p50=float(np.quantile(cash_sum, 0.50)),
+        cash_60d_p95=float(np.quantile(cash_sum, 0.95)),
     )
 
 
@@ -141,21 +149,29 @@ def feasible(
     roi_target: float = DEFAULTS["roi_target"],
     risk_threshold: float = DEFAULTS["risk_threshold"],
     min_cash_60d: Optional[float] = None,
+    min_cash_60d_p5: Optional[float] = None,
     **kwargs,
 ) -> Tuple[bool, Dict[str, Any]]:
     mc = simulate_lot_outcomes(df, bid, **kwargs)
     roi = mc["roi"]
     prob = float((roi >= roi_target).mean())
     cash = float(mc["cash_60d"].mean())
-    ok = prob >= risk_threshold and (
-        True if min_cash_60d is None else (cash >= min_cash_60d)
+    cash_p5 = float(np.quantile(mc["cash_60d"], 0.05))
+
+    ok = (
+        prob >= risk_threshold
+        and (True if min_cash_60d is None else (cash >= min_cash_60d))
+        and (True if min_cash_60d_p5 is None else (cash_p5 >= min_cash_60d_p5))
     )
+
     mc["prob_roi_ge_target"] = prob
     mc["expected_cash_60d"] = cash
+    mc["cash_60d_p5"] = cash_p5
     mc["meets_constraints"] = bool(ok)
     mc["roi_target"] = float(roi_target)
     mc["risk_threshold"] = float(risk_threshold)
     mc["min_cash_60d"] = None if min_cash_60d is None else float(min_cash_60d)
+    mc["min_cash_60d_p5"] = None if min_cash_60d_p5 is None else float(min_cash_60d_p5)
     return ok, mc
 
 

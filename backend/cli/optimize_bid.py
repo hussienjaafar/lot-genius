@@ -44,6 +44,12 @@ def _to_json_serializable(obj):
     type=float,
     help="Optional expected cash recovered within 60d threshold",
 )
+@click.option(
+    "--min-cash-60d-p5",
+    default=None,
+    type=float,
+    help="Optional P5 cash recovered within 60d threshold (VaR)",
+)
 # Search bracket
 @click.option("--lo", required=True, type=float, help="Low end of bid search bracket")
 @click.option("--hi", required=True, type=float, help="High end of bid search bracket")
@@ -66,6 +72,13 @@ def _to_json_serializable(obj):
 @click.option("--refurb-per-order", default=0.0, show_default=True, type=float)
 @click.option("--return-rate", default=0.08, show_default=True, type=float)
 @click.option("--salvage-fee-pct", default=0.00, show_default=True, type=float)
+@click.option(
+    "--lot-fixed-cost",
+    default=0.0,
+    show_default=True,
+    type=float,
+    help="Fixed cost added to bid in ROI denominator",
+)
 @click.option("--seed", default=1337, show_default=True, type=int)
 def main(
     input_csv,
@@ -73,6 +86,7 @@ def main(
     roi_target,
     risk_threshold,
     min_cash_60d,
+    min_cash_60d_p5,
     lo,
     hi,
     tol,
@@ -87,6 +101,7 @@ def main(
     refurb_per_order,
     return_rate,
     salvage_fee_pct,
+    lot_fixed_cost,
     seed,
 ):
     """
@@ -102,6 +117,7 @@ def main(
         roi_target=float(roi_target),
         risk_threshold=float(risk_threshold),
         min_cash_60d=(None if min_cash_60d is None else float(min_cash_60d)),
+        min_cash_60d_p5=(None if min_cash_60d_p5 is None else float(min_cash_60d_p5)),
         sims=int(sims),
         salvage_frac=float(salvage_frac),
         marketplace_fee_pct=float(marketplace_fee_pct),
@@ -112,6 +128,7 @@ def main(
         refurb_per_order=float(refurb_per_order),
         return_rate=float(return_rate),
         salvage_fee_pct=float(salvage_fee_pct),
+        lot_fixed_cost=float(lot_fixed_cost),
         seed=int(seed),
     )
     out_json = Path(out_json)
@@ -130,6 +147,7 @@ def main(
                 "roi_p95": float(result["roi_p95"]),
                 "prob_roi_ge_target": float(result["prob_roi_ge_target"]),
                 "expected_cash_60d": float(result["expected_cash_60d"]),
+                "cash_60d_p5": float(result["cash_60d_p5"]),
                 "meets_constraints": bool(result["meets_constraints"]),
             },
             indent=2,

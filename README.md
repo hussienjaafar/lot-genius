@@ -170,3 +170,12 @@ Evidence ledger is JSONL; each record includes source, cached, and minimal paylo
   - `keepa:code:fresh` — UPC/EAN resolved via Keepa (fresh network hit)
   - `keepa:code:cached` — UPC/EAN resolved via Keepa (cache hit)
   - `fallback:*` — rows that didn't resolve yet (brand/model or title stub)
+
+- To compress the evidence ledger as `.jsonl.gz`, use:
+  ```bash
+  python -m backend.cli.resolve_ids backend/tests/fixtures/manifest_multiqty.csv --network \
+    --gzip-ledger \
+    --out-enriched data/out/resolved_enriched.csv \
+    --out-ledger data/evidence/keepa_ledger.jsonl
+  # Output JSON will report the final .gz path
+  ```

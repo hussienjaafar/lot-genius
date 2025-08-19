@@ -33,13 +33,24 @@ from lotgenius.resolve import resolve_ids, write_ledger_jsonl
     default="data/evidence/keepa_ledger.jsonl",
     show_default=True,
 )
+@click.option(
+    "--gzip-ledger/--no-gzip-ledger",
+    default=False,
+    show_default=True,
+    help="Compress evidence ledger as JSONL.GZ",
+)
 def main(
-    csv_path: Path, threshold: int, network: bool, out_enriched: Path, out_ledger: Path
+    csv_path: Path,
+    threshold: int,
+    network: bool,
+    out_enriched: Path,
+    out_ledger: Path,
+    gzip_ledger: bool,
 ):
     df, ledger = resolve_ids(csv_path, threshold=threshold, use_network=network)
     out_enriched.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(out_enriched, index=False)
-    write_ledger_jsonl(ledger, out_ledger)
+    final_ledger_path = write_ledger_jsonl(ledger, out_ledger, gzip_output=gzip_ledger)
 
     # Compute source counts
     src_counts = {}
@@ -53,7 +64,7 @@ def main(
         "resolved": int(df["asin"].notna().sum()),
         "unresolved": int(df["asin"].isna().sum()),
         "enriched_path": str(out_enriched),
-        "ledger_path": str(out_ledger),
+        "ledger_path": str(final_ledger_path),
         "source_counts": src_counts,
     }
     click.echo(json.dumps(payload, indent=2))

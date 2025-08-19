@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gzip
 import json
 import re
 from dataclasses import asdict, dataclass
@@ -113,6 +114,7 @@ def resolve_ids(
                         "note": "code lookup",
                         "cached": bool(resp.get("cached")),
                         "products": len((resp.get("data") or {}).get("products") or []),
+                        "code": ident,
                     },
                     timestamp=datetime.now(timezone.utc).isoformat(),
                 )
@@ -158,8 +160,21 @@ def resolve_ids(
     return df, ledger
 
 
-def write_ledger_jsonl(ledger: list[EvidenceRecord], out_path: str | Path):
-    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
-    with open(out_path, "w", encoding="utf-8") as f:
+def write_ledger_jsonl(
+    ledger: list[EvidenceRecord], out_path: str | Path, gzip_output: bool | None = None
+):
+    out_path = Path(out_path)
+    if gzip_output is None:
+        gzip_output = str(out_path).endswith(".gz")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    if gzip_output and not str(out_path).endswith(".gz"):
+        out_path = out_path.with_suffix(out_path.suffix + ".gz")
+    opener = (
+        (lambda p: gzip.open(p, "wt", encoding="utf-8"))
+        if gzip_output
+        else (lambda p: open(p, "w", encoding="utf-8"))
+    )
+    with opener(out_path) as f:
         for rec in ledger:
             f.write(json.dumps(asdict(rec), ensure_ascii=False) + "\n")
+    return out_path

@@ -120,7 +120,7 @@ validate-golden:
 	@echo "Validating all golden manifests..."
 	@for f in data/golden_manifests/*.csv; do \
 	  echo "Validating $$f"; \
-	  $(PYTHON) -m backend.cli.validate_manifest "$$f" || exit 1; \
+	  $(PYTHON) -m backend.cli.validate_manifest "$$f" --strict || exit 1; \
 	done
 
 ## Show available commands

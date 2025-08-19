@@ -12,7 +12,13 @@ from lotgenius.validation import validate_manifest_csv
 @click.option(
     "--threshold", default=88, show_default=True, help="Fuzzy match threshold (0-100)"
 )
-def main(csv_path: Path, threshold: int):
+@click.option(
+    "--strict/--no-strict",
+    default=False,
+    show_default=True,
+    help="Exit non-zero when validation fails.",
+)
+def main(csv_path: Path, threshold: int, strict: bool):
     """
     Validate a raw manifest CSV:
       - header mapping coverage,
@@ -32,6 +38,8 @@ def main(csv_path: Path, threshold: int):
         "notes": rep.notes,
     }
     click.echo(json.dumps(payload, indent=2))
+    if strict and not payload["passed"]:
+        raise SystemExit(2)
 
 
 if __name__ == "__main__":

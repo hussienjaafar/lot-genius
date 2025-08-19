@@ -97,7 +97,9 @@ def test_salvage_floor_applied():
     expected_salvage = mu * 0.85
     assert abs(out.loc[0, "est_price_p5_floored"] - expected_salvage) < 0.01
     assert out.loc[0, "est_price_floor_rule"] == "salvage"
-    assert pd.isna(out.loc[0, "est_price_category"])  # No category provided
+    assert (
+        out.loc[0, "est_price_category"] == "default"
+    )  # No category provided, fallback to "default"
 
 
 def test_no_floor_applied_when_p5_above_floors():
@@ -198,3 +200,42 @@ def test_category_floor_uses_category_hint():
     )
     assert float(out.loc[0, "est_price_p5_floored"]) >= 25.0
     assert "category" in (out.loc[0, "est_price_floor_rule"] or "")
+
+
+def test_category_fallback_to_default():
+    """Test category fallback tracking when requested category not in priors."""
+    from pathlib import Path
+
+    priors_path = Path("backend/tests/fixtures/category_priors.json")
+    df = _df(
+        [
+            {
+                "sku_local": "F1",
+                "condition": "New",
+                "category": "UnknownCategory",  # Not in priors file
+                "keepa_price_new_med": 50.0,
+                "keepa_offers_count": 3,
+            }
+        ]
+    )
+
+    out, ledger = estimate_prices(
+        df, category_priors_path=priors_path, salvage_floor_frac=None
+    )
+
+    # Check that category fell back to "default"
+    assert out.loc[0, "est_price_category"] == "default"
+
+    # Check evidence meta has fallback tracking
+    evidence = ledger[0]
+    meta = evidence.meta
+    assert meta["category_requested"] == "UnknownCategory"
+    assert meta["category_used"] == "default"
+    assert meta["category_fallback"] is True
+
+    # Check unified naming in evidence meta
+    assert "est_price_p5" in meta
+    assert "est_price_p5_floored" in meta
+    # Backward-compat keys should still exist
+    assert "p5" in meta
+    assert "p5_floored" in meta

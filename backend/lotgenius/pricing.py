@@ -328,6 +328,14 @@ def estimate_prices(
             p50 = _clip_pos(_pctl_normal(mu, sigma, 0.50))
             p95 = _clip_pos(_pctl_normal(mu, sigma, 0.95))
 
+            # Track category fallback for evidence
+            requested_key = _category_key_from_row(row)
+            used_key = (
+                requested_key
+                if requested_key and requested_key in category_priors
+                else "default"
+            )
+
             # Apply conservative floor
             p5_floored, floor_rule, category = _apply_conservative_floor(
                 p5, mu, row, category_priors, salvage_floor_frac
@@ -343,12 +351,28 @@ def estimate_prices(
             )
             df.at[idx, "est_price_p5_floored"] = float(p5_floored)
             df.at[idx, "est_price_floor_rule"] = floor_rule
-            df.at[idx, "est_price_category"] = category
+            df.at[idx, "est_price_category"] = used_key
             ok = True
         else:
             ok = False
 
-        # Evidence
+        # Evidence - build enhanced meta with fallback info and unified naming
+        evidence_meta = {"triangulation": meta}
+        if mu is not None and sigma is not None:
+            evidence_meta.update(
+                {
+                    "category_requested": requested_key,
+                    "category_used": used_key,
+                    "category_fallback": bool(used_key != requested_key),
+                    # Unified naming - duplicate "est_" keys for uniform access
+                    "est_price_p5": p5,
+                    "est_price_p5_floored": float(p5_floored),
+                    # Keep backward-compat keys
+                    "p5": p5,
+                    "p5_floored": float(p5_floored),
+                }
+            )
+
         ledger.append(
             EvidenceRecord(
                 row_index=int(idx),
@@ -368,7 +392,7 @@ def estimate_prices(
                     row.get("asin") if isinstance(row.get("asin"), str) else None
                 ),
                 cached=None,
-                meta={"triangulation": meta},
+                meta=evidence_meta,
                 timestamp=datetime.now(timezone.utc).isoformat(),
             )
         )

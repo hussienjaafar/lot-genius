@@ -291,3 +291,18 @@ make estimate-prices-with-floors
 - **Conservative logic:** Applies highest available floor when P5 falls below
 - **Compact evidence export:** NDJSON with essential price data for fast UI reads
 - **Backward compatible:** All new columns/flags are optional
+
+**Price Evidence NDJSON Schema:**
+
+| Field                  | Type         | Description                                                           |
+| ---------------------- | ------------ | --------------------------------------------------------------------- |
+| `row_index`            | int          | Zero-based row index from input CSV                                   |
+| `sku_local`            | string\|null | Local SKU identifier                                                  |
+| `asin`                 | string\|null | Amazon ASIN (if available and valid)                                  |
+| `est_price_mu`         | float\|null  | Price estimate μ (mean)                                               |
+| `est_price_sigma`      | float\|null  | Price estimate σ (std deviation)                                      |
+| `est_price_p5`         | float\|null  | 5th percentile estimate                                               |
+| `est_price_p5_floored` | float\|null  | P5 after applying conservative floor                                  |
+| `est_price_floor_rule` | string\|null | Applied floor rule ("category_abs", "category_frac", "salvage", null) |
+| `est_price_category`   | string\|null | Category used for floor lookup ("default" if fallback)                |
+| `sources`              | array        | Parsed price sources with weights and metadata                        |

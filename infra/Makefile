@@ -105,6 +105,11 @@ map-preview-candidates:
 	@echo "Running header mapping preview with suggestions..."
 	$(PYTHON) -m backend.cli.map_preview backend/tests/fixtures/manifest_sample.csv --show-candidates
 
+## Preview header mappings with strict duplicate checking
+map-preview-strict:
+	@echo "Running header mapping preview with strict duplicate checking..."
+	$(PYTHON) -m backend.cli.map_preview backend/tests/fixtures/manifest_sample.csv --fail-on-duplicates
+
 ## Show available commands
 help:
 	@echo "Available commands:"
@@ -116,6 +121,7 @@ help:
 	@echo "  make clean       - Remove build artifacts"
 	@echo "  make map-preview - Preview header mappings"
 	@echo "  make map-preview-candidates - Preview with suggestions"
+	@echo "  make map-preview-strict - Preview with strict duplicate checking"
 	@echo "  make run-dev     - Start development server"
 	@echo "  make run-prod    - Start production server"
 	@echo "  make docker-build - Build Docker image"

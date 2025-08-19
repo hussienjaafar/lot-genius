@@ -58,6 +58,15 @@ python -m backend.cli.map_preview backend/tests/fixtures/manifest_sample.csv --s
 python -m backend.cli.map_preview backend/tests/fixtures/manifest_sample.csv --show-candidates --top-k 5
 ```
 
+**Detect duplicate mappings**
+
+```bash
+# Show warnings if multiple source headers map to the same canonical field
+python -m backend.cli.map_preview backend/tests/fixtures/manifest_sample.csv --show-candidates
+# Make it a hard failure (CI-friendly)
+python -m backend.cli.map_preview backend/tests/fixtures/manifest_sample.csv --fail-on-duplicates
+```
+
 ## Next Steps
 
 - ✅ Canonical schema & header mapping

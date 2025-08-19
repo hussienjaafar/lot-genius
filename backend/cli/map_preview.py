@@ -3,7 +3,12 @@ from pathlib import Path
 
 import click
 import pandas as pd
-from lotgenius.headers import learn_alias, map_headers, suggest_candidates
+from lotgenius.headers import (
+    find_conflicts,
+    learn_alias,
+    map_headers,
+    suggest_candidates,
+)
 
 
 @click.command()
@@ -32,12 +37,19 @@ from lotgenius.headers import learn_alias, map_headers, suggest_candidates
     show_default=True,
     help="How many suggestions per unmapped header",
 )
+@click.option(
+    "--fail-on-duplicates/--no-fail-on-duplicates",
+    default=False,
+    show_default=True,
+    help="Exit with non-zero if multiple source headers map to the same canonical field.",
+)
 def main(
     csv_path: Path,
     threshold: int,
     save_alias: list[tuple[str, str]],
     show_candidates: bool,
     top_k: int,
+    fail_on_duplicates: bool,
 ):
     """
     Preview header mappings for a CSV; print mapping + unmapped headers.
@@ -54,11 +66,25 @@ def main(
         for h in unmapped:
             suggestions[h] = suggest_candidates(h, top_k=top_k)
 
+    conflicts = find_conflicts(mapping)
+    if conflicts:
+        click.secho(
+            "WARNING: Multiple source headers mapped to the same canonical fields:",
+            fg="yellow",
+        )
+        for canon, srcs in conflicts.items():
+            click.secho(f"  - {canon}: {', '.join(srcs)}", fg="yellow")
+
     payload = {"path": str(csv_path), "mapping": mapping, "unmapped": unmapped}
     if show_candidates:
         payload["suggestions"] = suggestions
+    if conflicts:
+        payload["conflicts"] = conflicts
 
     click.echo(json.dumps(payload, indent=2))
+
+    if conflicts and fail_on_duplicates:
+        raise SystemExit(2)
 
 
 if __name__ == "__main__":

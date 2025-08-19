@@ -68,7 +68,14 @@ ALIAS_STORE = Path("data/aliases/header_aliases.json")
 
 
 def _normalize(s: str) -> str:
-    return "".join(ch for ch in s.lower().strip() if ch.isalnum())
+    if s is None:
+        return ""
+    # Strip BOM & zero-widths seen in CSVs
+    zw = ["\ufeff", "\u200b", "\u200c", "\u200d", "\u2060"]
+    for z in zw:
+        s = s.replace(z, "")
+    s = s.strip().lower()
+    return "".join(ch for ch in s if ch.isalnum())
 
 
 def _load_aliases() -> Dict[str, str]:
@@ -173,3 +180,14 @@ def suggest_candidates(src_header: str, top_k: int = 5) -> list[dict]:
             canonical = next((k for k, v in SYNONYMS.items() if cand in v), None)
         out.append({"candidate": cand, "canonical": canonical, "score": int(score)})
     return out
+
+
+def find_conflicts(mapping: dict[str, str]) -> dict[str, list[str]]:
+    """
+    Returns {canonical: [source headers...]} for any canonical field
+    that is targeted by >1 source header.
+    """
+    inv: dict[str, list[str]] = {}
+    for src, dest in mapping.items():
+        inv.setdefault(dest, []).append(src)
+    return {k: v for k, v in inv.items() if len(v) > 1}

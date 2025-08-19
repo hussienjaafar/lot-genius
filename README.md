@@ -148,6 +148,7 @@ python -m backend.cli.resolve_ids input.csv --keepa-key your_key_here  # pragma:
 - ✅ Parser/cleaner with quantity explode
 - ✅ Keepa client with caching & retries
 - ✅ ID resolver with evidence ledger
+- ✅ Keepa stats enrichment (prices, rank, offers)
 - Ensemble pricing & survival models
 - Monte Carlo optimizer with configurable gates
 
@@ -179,3 +180,35 @@ Evidence ledger is JSONL; each record includes source, cached, and minimal paylo
     --out-ledger data/evidence/keepa_ledger.jsonl
   # Output JSON will report the final .gz path
   ```
+
+## Step 6 — Keepa Stats Enrichment
+
+Extend the ID resolution pipeline with Keepa price/rank/offer statistics:
+
+```bash
+# Set your Keepa API key  # pragma: allowlist secret
+export KEEPA_API_KEY="sk_live_xxx"  # pragma: allowlist secret
+
+# Run with stats enrichment
+python -m backend.cli.resolve_ids backend/tests/fixtures/manifest_multiqty.csv \
+  --network --with-stats \
+  --out-enriched data/out/resolved_with_stats.csv \
+  --out-ledger data/evidence/keepa_stats_ledger.jsonl
+
+# Or use the Makefile shortcut
+make resolve-with-stats
+```
+
+**Features:**
+
+- **Stats Columns:** Adds `keepa_price_new_med`, `keepa_price_used_med`, `keepa_salesrank_med`, `keepa_offers_count` to output CSV
+- **Evidence Ledger:** Creates `keepa:stats` records for audit trail of stats lookups
+- **Dual Lookup:** Fetches stats by ASIN (preferred) or UPC/EAN code when ASIN unavailable
+- **Compact Extraction:** Defensive parsing of Keepa stats payload with median values
+- **Cache-Aware:** Uses separate cache keys for stats vs regular product lookups
+- **Optional:** Only runs when `--with-stats` flag is provided
+
+**Output Summary includes:**
+
+- `with_stats`: boolean indicating if stats enrichment was requested
+- `stats_columns_present`: list of stats columns that were added to the output CSV

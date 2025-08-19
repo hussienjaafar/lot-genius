@@ -168,6 +168,10 @@ resolve-dryrun:
 resolve-with-keepa:
 	$(PYTHON) -m backend.cli.resolve_ids backend/tests/fixtures/manifest_multiqty.csv --network --out-enriched data/out/resolved_enriched.csv --out-ledger data/evidence/keepa_ledger.jsonl
 
+## Resolve IDs with Keepa stats enrichment
+resolve-with-stats:
+	$(PYTHON) -m backend.cli.resolve_ids backend/tests/fixtures/manifest_multiqty.csv --network --with-stats --out-enriched data/out/resolved_with_stats.csv --out-ledger data/evidence/keepa_stats_ledger.jsonl
+
 ## Show available commands
 help:
 	@echo "Available commands:"
@@ -190,6 +194,7 @@ help:
 	@echo "  make resolve FILE=path/to.csv - Resolve IDs for custom file"
 	@echo "  make resolve-dryrun - Resolve IDs (dry run - no network)"
 	@echo "  make resolve-with-keepa - Resolve IDs with Keepa network lookups"
+	@echo "  make resolve-with-stats - Resolve IDs with Keepa stats enrichment"
 	@echo "  make run-dev     - Start development server"
 	@echo "  make run-prod    - Start production server"
 	@echo "  make docker-build - Build Docker image"

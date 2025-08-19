@@ -148,6 +148,36 @@ class KeepaClient:
             "data": {"products": [], "note": "title-search stub"},
         }
 
+    def fetch_stats_by_code(self, code: str) -> dict:
+        """Get Keepa product payload with stats=1 using UPC/EAN code."""
+        if not self.cfg.api_key:
+            return {"ok": False, "error": "KEEPA_API_KEY not set"}
+        url = "https://api.keepa.com/product"
+        params = {
+            "key": self.cfg.api_key,
+            "domain": self.cfg.domain,
+            "code": code,
+            "stats": 1,
+        }
+        return self._get(
+            url, params, cache_key=f"product_stats:code:{self.cfg.domain}:{code}"
+        )
+
+    def fetch_stats_by_asin(self, asin: str) -> dict:
+        """Get Keepa product payload with stats=1 using ASIN."""
+        if not self.cfg.api_key:
+            return {"ok": False, "error": "KEEPA_API_KEY not set"}
+        url = "https://api.keepa.com/product"
+        params = {
+            "key": self.cfg.api_key,
+            "domain": self.cfg.domain,
+            "asin": asin,
+            "stats": 1,
+        }
+        return self._get(
+            url, params, cache_key=f"product_stats:asin:{self.cfg.domain}:{asin}"
+        )
+
 
 def extract_primary_asin(keepa_payload: dict) -> Optional[str]:
     try:

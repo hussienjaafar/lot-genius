@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 import click
-from lotgenius.resolve import resolve_ids, write_ledger_jsonl
+from lotgenius.resolve import enrich_keepa_stats, resolve_ids, write_ledger_jsonl
 
 
 @click.command()
@@ -34,6 +34,12 @@ from lotgenius.resolve import resolve_ids, write_ledger_jsonl
     show_default=True,
 )
 @click.option(
+    "--with-stats/--no-with-stats",
+    default=False,
+    show_default=True,
+    help="Fetch Keepa price/rank stats and attach to output + ledger",
+)
+@click.option(
     "--gzip-ledger/--no-gzip-ledger",
     default=False,
     show_default=True,
@@ -45,9 +51,16 @@ def main(
     network: bool,
     out_enriched: Path,
     out_ledger: Path,
+    with_stats: bool,
     gzip_ledger: bool,
 ):
     df, ledger = resolve_ids(csv_path, threshold=threshold, use_network=network)
+
+    # Optional stats enrichment
+    if with_stats and network:
+        df, stats_ledger = enrich_keepa_stats(df, use_network=network)
+        ledger.extend(stats_ledger)
+
     out_enriched.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(out_enriched, index=False)
     final_ledger_path = write_ledger_jsonl(ledger, out_ledger, gzip_output=gzip_ledger)
@@ -58,6 +71,15 @@ def main(
         vc = df["resolved_source"].dropna().value_counts()
         src_counts = {str(k): int(v) for k, v in vc.items()}
 
+    # Check for stats columns presence
+    stats_cols = [
+        "keepa_price_new_med",
+        "keepa_price_used_med",
+        "keepa_salesrank_med",
+        "keepa_offers_count",
+    ]
+    stats_columns_present = [col for col in stats_cols if col in df.columns]
+
     payload = {
         "input": str(csv_path),
         "rows": int(df.shape[0]),
@@ -66,6 +88,8 @@ def main(
         "enriched_path": str(out_enriched),
         "ledger_path": str(final_ledger_path),
         "source_counts": src_counts,
+        "with_stats": bool(with_stats),
+        "stats_columns_present": stats_columns_present,
     }
     click.echo(json.dumps(payload, indent=2))
 

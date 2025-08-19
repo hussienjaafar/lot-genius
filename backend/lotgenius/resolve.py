@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 
 from .keepa_client import KeepaClient, extract_primary_asin
+from .keepa_extract import extract_stats_compact
 from .parse import parse_and_clean
 
 
@@ -178,3 +179,87 @@ def write_ledger_jsonl(
         for rec in ledger:
             f.write(json.dumps(asdict(rec), ensure_ascii=False) + "\n")
     return out_path
+
+
+def enrich_keepa_stats(df_in, use_network: bool = True):
+    """
+    For rows with an ASIN (or at least a code), fetch Keepa stats and
+    return (df_with_columns, evidence_records).
+    Adds columns (nullable):
+      - keepa_price_new_med
+      - keepa_price_used_med
+      - keepa_salesrank_med
+      - keepa_offers_count
+    """
+    df = df_in.copy()
+    cols = [
+        "keepa_price_new_med",
+        "keepa_price_used_med",
+        "keepa_salesrank_med",
+        "keepa_offers_count",
+    ]
+    for c in cols:
+        if c not in df.columns:
+            df[c] = None
+
+    if not use_network:
+        return df, []  # no-op
+
+    client = KeepaClient()
+    ledger = []
+    for idx, row in df.iterrows():
+        asin = row.get("asin")
+        code = row.get("upc_ean_asin")
+        resp = None
+        if isinstance(asin, str) and asin:
+            resp = client.fetch_stats_by_asin(asin)
+        elif isinstance(code, str) and code and code.isdigit():
+            resp = client.fetch_stats_by_code(code)
+        else:
+            continue
+
+        ok = bool(resp.get("ok"))
+        data = resp.get("data") or {}
+        comp = (
+            extract_stats_compact(data)
+            if ok
+            else {
+                "price_new_median": None,
+                "price_used_median": None,
+                "salesrank_median": None,
+                "offers_count": None,
+            }
+        )
+
+        # write to df
+        if comp["price_new_median"] is not None:
+            df.at[idx, "keepa_price_new_med"] = comp["price_new_median"]
+        if comp["price_used_median"] is not None:
+            df.at[idx, "keepa_price_used_med"] = comp["price_used_median"]
+        if comp["salesrank_median"] is not None:
+            df.at[idx, "keepa_salesrank_med"] = comp["salesrank_median"]
+        if comp["offers_count"] is not None:
+            df.at[idx, "keepa_offers_count"] = int(comp["offers_count"])
+
+        # evidence record
+        ledger.append(
+            EvidenceRecord(
+                row_index=int(idx),
+                sku_local=(
+                    row.get("sku_local")
+                    if isinstance(row.get("sku_local"), str)
+                    else None
+                ),
+                upc_ean_asin=code if isinstance(code, str) else None,
+                source="keepa:stats",
+                ok=ok,
+                match_asin=asin if isinstance(asin, str) else None,
+                cached=resp.get("cached"),
+                meta={
+                    "compact": comp,
+                    "via": "asin" if isinstance(asin, str) and asin else "code",
+                },
+                timestamp=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+    return df, ledger

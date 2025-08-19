@@ -423,7 +423,7 @@ Optimizer JSON is compact by default (no per-simulation arrays). Use `--include-
 
 **Notes**: Arrays are compact by default (`--include-samples` to embed them). Sweep runs the same feasibility check as the optimizer across a grid of bids.
 
-**Quick visualization (optional)**  
+**Quick visualization (optional)**
 Turn `sweep_bid.csv` into a simple chart (requires `matplotlib`):
 
 ```bash
@@ -458,3 +458,64 @@ plt.savefig("data/out/sweep_bid.png", dpi=150, bbox_inches="tight")
 print("Wrote data/out/sweep_bid.png")
 PY
 ```
+
+## Step 9.2 — Mini-Report Generator (Concise Decision Report)
+
+Generate a concise, decision-ready Markdown report that consolidates per-unit analysis and optimizer results into an executive summary. Optionally produces HTML and PDF outputs.
+
+**GOAL:** Produce a concise Lot Genius report that:
+
+- Reads per-unit items CSV (from Step 8 output) and optimizer JSON (from Step 9)
+- Emits a Markdown report (always). Optionally also HTML and PDF.
+- Optionally references the sweep CSV/PNG and optimizer evidence NDJSON.
+
+```bash
+# Generate markdown report with artifact references
+python -m backend.cli.report_lot \
+  --items-csv data/out/estimated_sell.csv \
+  --opt-json data/out/optimize_bid.json \
+  --out-markdown data/out/lot_report.md \
+  --sweep-csv data/out/sweep_bid.csv \
+  --sweep-png data/out/sweep_bid.png \
+  --evidence-jsonl data/evidence/optimize_evidence.jsonl
+
+# With optional HTML output (requires pandoc)
+python -m backend.cli.report_lot \
+  --items-csv data/out/estimated_sell.csv \
+  --opt-json data/out/optimize_bid.json \
+  --out-markdown data/out/lot_report.md \
+  --out-html data/out/lot_report.html
+
+# With optional PDF output (requires pandoc + LaTeX)
+python -m backend.cli.report_lot \
+  --items-csv data/out/estimated_sell.csv \
+  --opt-json data/out/optimize_bid.json \
+  --out-markdown data/out/lot_report.md \
+  --out-pdf data/out/lot_report.pdf
+
+# Or use the Makefile shortcut
+make report-lot
+```
+
+**Report Structure:**
+
+- **Executive Summary:** Recommended bid, ROI, probability of success, 60-day cash recovery
+- **Lot Overview:** Item count, total estimated value, average sell-through probability
+- **Optimization Parameters:** ROI target, risk threshold
+- **Investment Decision:** Clear proceed/pass recommendation with reasoning
+- **Supporting Artifacts:** References to sweep analysis, charts, and audit trails (if provided)
+
+**Features:**
+
+- **Decision-focused:** Clear proceed/pass recommendation based on constraint satisfaction
+- **Defensive formatting:** Handles missing data gracefully with "N/A" fallbacks
+- **Artifact linking:** Optional references to sweep CSV/PNG and evidence JSONL
+- **Multi-format output:** Markdown (always), HTML/PDF (optional, requires pandoc)
+- **Concise format:** Designed for executive consumption, not exhaustive technical detail
+
+**Notes:**
+
+- HTML/PDF conversion requires `pandoc` to be installed
+- PDF conversion additionally requires LaTeX (e.g., `pdflatex`)
+- If pandoc is unavailable, conversion is skipped with a warning (markdown is always generated)
+- Report focuses on investment decision; detailed technical analysis is available in referenced artifacts

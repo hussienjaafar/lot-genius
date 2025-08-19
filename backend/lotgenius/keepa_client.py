@@ -84,6 +84,13 @@ class KeepaClient:
         self.cfg = cfg
         self.session = requests.Session()
 
+        # Eager DB init to ensure file exists and PRAGMAs are applied
+        try:
+            conn = _db()
+            conn.close()
+        except Exception:
+            pass
+
     def _get(self, url: str, params: dict, cache_key: str) -> dict:
         ttl = int(self.cfg.ttl_days * 86400)
         cached = _cache_get(cache_key, ttl)

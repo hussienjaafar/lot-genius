@@ -13,19 +13,6 @@ def _fake_client_init(self, cfg=None):
         )
     )
 
-    class DummyResp:
-        def __init__(self):
-            self.status_code = 200
-            self._payload = payload
-            self.text = json.dumps(payload)
-
-        def json(self):
-            return self._payload
-
-    class Sess:
-        def get(self, url, params=None, timeout=None):
-            return DummyResp()
-
     # minimal cfg
     self.cfg = cfg or type(
         "C",
@@ -40,7 +27,17 @@ def _fake_client_init(self, cfg=None):
             "max_retries": 1,
         },
     )
-    self.session = Sess()
+    self.session = None  # Not used in our mock
+
+    # Mock the lookup_by_code method to return expected structure
+    def fake_lookup_by_code(code):
+        return {
+            "ok": True,
+            "cached": False,  # Fresh network hit for testing
+            "data": payload,
+        }
+
+    self.lookup_by_code = fake_lookup_by_code
 
 
 def test_resolve_ids_upc_to_asin(monkeypatch):

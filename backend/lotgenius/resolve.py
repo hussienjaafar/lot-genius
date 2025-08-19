@@ -94,8 +94,11 @@ def resolve_ids(
                 extract_primary_asin(resp.get("data") or {}) if resp.get("ok") else None
             )
             if asin:
+                label = (
+                    "keepa:code:cached" if resp.get("cached") else "keepa:code:fresh"
+                )
                 df.at[idx, "asin"] = asin
-                df.at[idx, "resolved_source"] = "keepa:code"
+                df.at[idx, "resolved_source"] = label
             ledger.append(
                 EvidenceRecord(
                     row_index=int(idx),
@@ -108,6 +111,7 @@ def resolve_ids(
                     meta={
                         "status": resp.get("status"),
                         "note": "code lookup",
+                        "cached": bool(resp.get("cached")),
                         "products": len((resp.get("data") or {}).get("products") or []),
                     },
                     timestamp=datetime.now(timezone.utc).isoformat(),

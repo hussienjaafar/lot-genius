@@ -47,3 +47,17 @@ def test_lookup_by_code_caches(monkeypatch, tmp_path):
     r2 = client.lookup_by_code("012345678905")
     assert r2["ok"] and r2["cached"]
     assert calls["n"] == 1
+
+
+def test_db_file_created_on_init(tmp_path, monkeypatch):
+    # Redirect cache path to a temp dir by monkeypatching module constant
+    from lotgenius import keepa_client as kc
+
+    tmp_db_dir = tmp_path / "cache"
+    tmp_db = tmp_db_dir / "keepa_cache.sqlite"
+    monkeypatch.setattr(kc, "_DB_PATH", tmp_db)
+    # Create the parent directory since it's needed
+    tmp_db_dir.mkdir(parents=True, exist_ok=True)
+    # Instantiate client -> should create DB (via eager _db() in __init__)
+    kc.KeepaClient(kc.KeepaConfig(api_key="FAKE"))  # pragma: allowlist secret
+    assert tmp_db.exists(), "Keepa cache DB was not created on init"

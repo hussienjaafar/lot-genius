@@ -164,3 +164,9 @@ python -m backend.cli.resolve_ids backend/tests/fixtures/manifest_multiqty.csv -
 ```
 
 Evidence ledger is JSONL; each record includes source, cached, and minimal payload summary.
+
+- The summary now includes `source_counts`, e.g.:
+  - `direct:asin` — rows that provided an ASIN in the manifest
+  - `keepa:code:fresh` — UPC/EAN resolved via Keepa (fresh network hit)
+  - `keepa:code:cached` — UPC/EAN resolved via Keepa (cache hit)
+  - `fallback:*` — rows that didn't resolve yet (brand/model or title stub)

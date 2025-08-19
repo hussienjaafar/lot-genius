@@ -174,3 +174,44 @@ def test_api_key_optional_when_not_set(temp_data):
     # Request without API key should succeed when key is not configured
     response = client.post("/v1/report", json=request_data)
     assert response.status_code == 200
+
+
+def test_stream_sse_headers_and_events(temp_data):
+    """Test SSE headers and basic event structure."""
+    resp = client.post(
+        "/v1/report/stream",
+        json={
+            "items_csv": temp_data["items_csv"],
+            "opt_json_path": temp_data["opt_json"],
+        },
+        headers={"Accept": "text/event-stream"},
+    )
+    # NB: TestClient buffers; we can at least assert content contains start/done
+    body = resp.text
+    assert resp.headers.get("content-type", "").startswith("text/event-stream")
+    assert "data:" in body and "start" in body and "done" in body
+
+
+def test_stream_requires_api_key_when_set(temp_data, monkeypatch):
+    """Test stream endpoint enforces API key when set."""
+    monkeypatch.setenv("LOTGENIUS_API_KEY", "secret123")
+
+    payload = {
+        "items_csv": temp_data["items_csv"],
+        "opt_json_path": temp_data["opt_json"],
+    }
+
+    r_no = client.post("/v1/report/stream", json=payload)
+    assert r_no.status_code == 401
+
+    r_bad = client.post(
+        "/v1/report/stream", json=payload, headers={"X-API-Key": "wrong"}
+    )
+    assert r_bad.status_code == 401
+
+    r_ok = client.post(
+        "/v1/report/stream", json=payload, headers={"X-API-Key": "secret123"}
+    )
+    assert r_ok.status_code == 200
+    # spot check body:
+    assert "data:" in r_ok.text and "start" in r_ok.text and "done" in r_ok.text

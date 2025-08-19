@@ -150,3 +150,17 @@ python -m backend.cli.resolve_ids input.csv --keepa-key your_key_here  # pragma:
 - ✅ ID resolver with evidence ledger
 - Ensemble pricing & survival models
 - Monte Carlo optimizer with configurable gates
+
+## Step 5 — ID Resolution (Keepa)
+
+```bash
+export KEEPA_API_KEY="sk_live_xxx"  # your key  # pragma: allowlist secret
+# Dry run (no network):
+python -m backend.cli.resolve_ids backend/tests/fixtures/manifest_multiqty.csv --no-network
+# With Keepa:
+python -m backend.cli.resolve_ids backend/tests/fixtures/manifest_multiqty.csv --network \
+  --out-enriched data/out/resolved_enriched.csv \
+  --out-ledger data/evidence/keepa_ledger.jsonl
+```
+
+Evidence ledger is JSONL; each record includes source, cached, and minimal payload summary.

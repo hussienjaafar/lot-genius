@@ -1,190 +1,153 @@
 from __future__ import annotations
 
-import logging
-from dataclasses import dataclass, field
-from datetime import datetime
-from typing import List, Optional
+import json
+import re
+from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
 from .keepa_client import KeepaClient, extract_primary_asin
-from .schema import Item
+from .parse import parse_and_clean
 
 
 @dataclass
-class Evidence:
-    """Evidence entry for tracking resolution attempts"""
-
-    source: str  # e.g., "keepa_lookup", "title_search_stub"
-    timestamp: str  # ISO format
-    raw: dict
-    asin: str | None = None
-    success: bool = False
-
-
-@dataclass
-class ResolutionResult:
-    """Result of attempting to resolve an Item to ASIN"""
-
-    item: Item
-    asin: str | None = None
-    success: bool = False
-    evidence: List[Evidence] = field(default_factory=list)
+class EvidenceRecord:
+    row_index: int
+    sku_local: str | None
+    upc_ean_asin: str | None
+    source: str
+    ok: bool
+    match_asin: str | None
+    cached: bool | None
+    meta: Dict[str, Any]
+    timestamp: str
 
 
-def resolve_item_to_asin(
-    item: Item, keepa_client: Optional[KeepaClient] = None
-) -> ResolutionResult:
-    """
-    Attempts to resolve an Item to an ASIN using multiple strategies:
-    1. Lookup by UPC/EAN/ASIN via Keepa
-    2. Fallback to title search (stubbed for Step 5)
-
-    Returns ResolutionResult with evidence ledger.
-    """
-    if keepa_client is None:
-        keepa_client = KeepaClient()
-
-    result = ResolutionResult(item=item)
-    timestamp = datetime.utcnow().isoformat()
-
-    # Strategy 1: Direct code lookup via Keepa
-    if item.upc_ean_asin:
-        try:
-            keepa_resp = keepa_client.lookup_by_code(item.upc_ean_asin)
-            evidence = Evidence(
-                source="keepa_lookup", timestamp=timestamp, raw=keepa_resp
-            )
-
-            if keepa_resp.get("ok"):
-                asin = extract_primary_asin(keepa_resp.get("data", {}))
-                if asin:
-                    evidence.asin = asin
-                    evidence.success = True
-                    result.asin = asin
-                    result.success = True
-
-            result.evidence.append(evidence)
-
-            # If successful, return early
-            if result.success:
-                return result
-
-        except Exception as e:
-            # Log but continue to fallback strategies
-            evidence = Evidence(
-                source="keepa_lookup",
-                timestamp=timestamp,
-                raw={"error": str(e)},
-                success=False,
-            )
-            result.evidence.append(evidence)
-
-    # Strategy 2: Title search fallback (stubbed for Step 5)
-    if item.title:
-        try:
-            # For Step 5, we use the stubbed title search
-            search_resp = keepa_client.search_by_title(item.title)
-            evidence = Evidence(
-                source="title_search_stub",
-                timestamp=timestamp,
-                raw=search_resp,
-                success=False,  # Always false for stub
-            )
-            result.evidence.append(evidence)
-
-        except Exception as e:
-            evidence = Evidence(
-                source="title_search_stub",
-                timestamp=timestamp,
-                raw={"error": str(e)},
-                success=False,
-            )
-            result.evidence.append(evidence)
-
-    return result
+def _id_kind(x: Optional[str]) -> str:
+    if not x:
+        return "none"
+    s = x.strip()
+    if re.match(r"^B0[A-Z0-9]{8}$", s.upper()):
+        return "asin"
+    if re.match(r"^\d{8,14}$", s):
+        return "code"
+    return "unknown"
 
 
-def resolve_dataframe(
-    df: pd.DataFrame, keepa_client: Optional[KeepaClient] = None
-) -> tuple[pd.DataFrame, List[dict]]:
-    """
-    Resolve a DataFrame of items to ASINs.
+def resolve_ids(
+    csv_path: str | Path, threshold: int = 88, use_network: bool = True
+) -> tuple[pd.DataFrame, List[EvidenceRecord]]:
+    parsed = parse_and_clean(csv_path, fuzzy_threshold=threshold, explode=False)
+    df = parsed.df_clean.copy()
 
-    Args:
-        df: DataFrame with Item-compatible columns
-        keepa_client: Optional KeepaClient instance
+    df["asin"] = None
+    df["resolved_source"] = None
+    df["match_score"] = None
 
-    Returns:
-        tuple of (enriched_df, evidence_ledger)
-        - enriched_df: Original DataFrame with additional 'resolved_asin' column
-        - evidence_ledger: List of evidence entries (JSONL-ready dicts)
-    """
-    if keepa_client is None:
-        keepa_client = KeepaClient()
-
-    enriched_df = df.copy()
-    enriched_df["resolved_asin"] = None
-    evidence_ledger = []
+    client = KeepaClient()
+    ledger: List[EvidenceRecord] = []
 
     for idx, row in df.iterrows():
-        # Convert row to Item for resolution
-        try:
-            # Create Item from row, handling missing columns gracefully
-            item_data = {}
-            for field_name in [
-                "title",
-                "brand",
-                "model",
-                "upc_ean_asin",
-                "condition",
-                "notes",
-                "category_hint",
-                "color_size_variant",
-            ]:
-                if field_name in row.index:
-                    item_data[field_name] = row[field_name]
+        sku = row.get("sku_local") if isinstance(row.get("sku_local"), str) else None
+        ident = (
+            row.get("upc_ean_asin")
+            if isinstance(row.get("upc_ean_asin"), str)
+            else None
+        )
+        kind = _id_kind(ident)
 
-            # Required fields with defaults
-            item_data.setdefault("title", "")
-            item_data.setdefault("condition", "New")
+        # Case 1: already an ASIN-like id
+        if kind == "asin":
+            asin = ident.strip().upper()
+            df.at[idx, "asin"] = asin
+            df.at[idx, "resolved_source"] = "direct:asin"
+            ledger.append(
+                EvidenceRecord(
+                    row_index=int(idx),
+                    sku_local=sku,
+                    upc_ean_asin=ident,
+                    source="direct:asin",
+                    ok=True,
+                    match_asin=asin,
+                    cached=True,
+                    meta={"note": "provided ASIN"},
+                    timestamp=datetime.now(timezone.utc).isoformat(),
+                )
+            )
+            continue
 
-            item = Item(**item_data)
+        # Case 2: UPC/EAN via Keepa
+        if kind == "code" and use_network:
+            resp = client.lookup_by_code(ident)
+            asin = (
+                extract_primary_asin(resp.get("data") or {}) if resp.get("ok") else None
+            )
+            if asin:
+                df.at[idx, "asin"] = asin
+                df.at[idx, "resolved_source"] = "keepa:code"
+            ledger.append(
+                EvidenceRecord(
+                    row_index=int(idx),
+                    sku_local=sku,
+                    upc_ean_asin=ident,
+                    source="keepa:code",
+                    ok=bool(resp.get("ok")) and asin is not None,
+                    match_asin=asin,
+                    cached=resp.get("cached"),
+                    meta={
+                        "status": resp.get("status"),
+                        "note": "code lookup",
+                        "products": len((resp.get("data") or {}).get("products") or []),
+                    },
+                    timestamp=datetime.now(timezone.utc).isoformat(),
+                )
+            )
+            if asin:
+                continue
 
-            # Resolve the item
-            resolution = resolve_item_to_asin(item, keepa_client)
+        # Case 3: fallback (no network)
+        title = row.get("title") if isinstance(row.get("title"), str) else ""
+        brand = row.get("brand") if isinstance(row.get("brand"), str) else ""
+        model = row.get("model") if isinstance(row.get("model"), str) else ""
+        query = " ".join([brand or "", model or ""]).strip() or (title or "").strip()
+        source = "fallback:brand-model" if (brand or model) else "fallback:title"
+        if query:
+            ledger.append(
+                EvidenceRecord(
+                    row_index=int(idx),
+                    sku_local=sku,
+                    upc_ean_asin=ident,
+                    source=source,
+                    ok=False,
+                    match_asin=None,
+                    cached=None,
+                    meta={"query": query, "note": "stub - no network"},
+                    timestamp=datetime.now(timezone.utc).isoformat(),
+                )
+            )
+        else:
+            ledger.append(
+                EvidenceRecord(
+                    row_index=int(idx),
+                    sku_local=sku,
+                    upc_ean_asin=ident,
+                    source="fallback:none",
+                    ok=False,
+                    match_asin=None,
+                    cached=None,
+                    meta={"note": "no query available"},
+                    timestamp=datetime.now(timezone.utc).isoformat(),
+                )
+            )
 
-            # Update enriched DataFrame
-            if resolution.success and resolution.asin:
-                enriched_df.at[idx, "resolved_asin"] = resolution.asin
+    return df, ledger
 
-            # Add evidence to ledger
-            for evidence in resolution.evidence:
-                ledger_entry = {
-                    "row_index": int(idx),
-                    "source": evidence.source,
-                    "timestamp": evidence.timestamp,
-                    "raw": evidence.raw,
-                    "asin": evidence.asin,
-                    "success": evidence.success,
-                    "item_title": item.title,
-                    "item_upc_ean_asin": item.upc_ean_asin,
-                }
-                evidence_ledger.append(ledger_entry)
 
-        except Exception as e:
-            # Log error but continue processing
-            logging.warning(f"Failed to resolve row {idx}: {e}")
-            evidence_entry = {
-                "row_index": int(idx),
-                "source": "resolution_error",
-                "timestamp": datetime.utcnow().isoformat(),
-                "raw": {"error": str(e)},
-                "asin": None,
-                "success": False,
-                "item_title": row.get("title", ""),
-                "item_upc_ean_asin": row.get("upc_ean_asin", ""),
-            }
-            evidence_ledger.append(evidence_entry)
-
-    return enriched_df, evidence_ledger
+def write_ledger_jsonl(ledger: list[EvidenceRecord], out_path: str | Path):
+    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+    with open(out_path, "w", encoding="utf-8") as f:
+        for rec in ledger:
+            f.write(json.dumps(asdict(rec), ensure_ascii=False) + "\n")

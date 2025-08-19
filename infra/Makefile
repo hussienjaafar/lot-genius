@@ -160,6 +160,14 @@ resolve:
 	@if [ -z "$(FILE)" ]; then echo 'Usage: make resolve FILE=path/to.csv'; exit 2; fi
 	$(PYTHON) -m backend.cli.resolve_ids $(FILE)
 
+## Resolve IDs (dry run - no network)
+resolve-dryrun:
+	$(PYTHON) -m backend.cli.resolve_ids backend/tests/fixtures/manifest_multiqty.csv --no-network
+
+## Resolve IDs with Keepa network lookups
+resolve-with-keepa:
+	$(PYTHON) -m backend.cli.resolve_ids backend/tests/fixtures/manifest_multiqty.csv --network --out-enriched data/out/resolved_enriched.csv --out-ledger data/evidence/keepa_ledger.jsonl
+
 ## Show available commands
 help:
 	@echo "Available commands:"
@@ -180,6 +188,8 @@ help:
 	@echo "  make parse-json  - Parse and explode manifest to JSON"
 	@echo "  make resolve-test - Resolve IDs to ASINs (test fixture)"
 	@echo "  make resolve FILE=path/to.csv - Resolve IDs for custom file"
+	@echo "  make resolve-dryrun - Resolve IDs (dry run - no network)"
+	@echo "  make resolve-with-keepa - Resolve IDs with Keepa network lookups"
 	@echo "  make run-dev     - Start development server"
 	@echo "  make run-prod    - Start production server"
 	@echo "  make docker-build - Build Docker image"

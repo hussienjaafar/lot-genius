@@ -72,5 +72,11 @@ def run_ge_checks(df: pd.DataFrame) -> dict:
     else:
         results = _pandas_checks(df.copy())
 
+    # Normalize all successes to plain bool (handles numpy.bool_ too)
+    results = [
+        {"expectation": it["expectation"], "success": bool(it["success"])}
+        for it in results
+    ]
+
     overall = all(x["success"] for x in results) if results else True
     return {"success": overall, "results": results}

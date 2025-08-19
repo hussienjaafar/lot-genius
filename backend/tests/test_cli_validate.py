@@ -34,3 +34,20 @@ def test_cli_strict_failure(tmp_path):
 
     payload = json.loads(res.output)
     assert payload["passed"] is False
+
+
+def test_cli_good_json_parseable_with_pct_and_bool_success():
+    import json
+
+    from click.testing import CliRunner
+
+    from backend.cli.validate_manifest import main as cli
+
+    runner = CliRunner()
+    res = runner.invoke(cli, ["data/golden_manifests/01_basic.csv", "--show-coverage"])
+    assert res.exit_code == 0, res.output
+    payload = json.loads(res.output)
+    assert payload["passed"] is True
+    assert "header_coverage_pct" in payload
+    # GE results must be JSON-native bools
+    assert all(isinstance(r["success"], bool) for r in payload.get("ge_results", []))

@@ -1,0 +1,14 @@
+{
+  "tokensLeft": 100,
+  "products": [
+    {
+      "asin": "B00TESTASIN",
+      "stats": {
+        "priceNewMedian": 19999,
+        "priceUsedMedian": 14950,
+        "salesRankMedian": 12500,
+        "offers": "12"
+      }
+    }
+  ]
+}

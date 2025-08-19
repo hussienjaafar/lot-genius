@@ -36,6 +36,7 @@ def test_extract_stats_compact_empty_payload():
         "price_used_median": None,
         "salesrank_median": None,
         "offers_count": None,
+        "scaled_from_cents": False,
     }
     assert result == expected
 
@@ -49,6 +50,7 @@ def test_extract_stats_compact_none_payload():
         "price_used_median": None,
         "salesrank_median": None,
         "offers_count": None,
+        "scaled_from_cents": False,
     }
     assert result == expected
 
@@ -63,6 +65,7 @@ def test_extract_stats_compact_no_products():
         "price_used_median": None,
         "salesrank_median": None,
         "offers_count": None,
+        "scaled_from_cents": False,
     }
     assert result == expected
 
@@ -148,4 +151,25 @@ def test_extract_stats_compact_malformed_numbers():
     assert result["price_new_median"] is None
     assert result["price_used_median"] is None
     assert result["salesrank_median"] is None
-    assert result["offers_count"] == "not_a_number"  # offers is passed through as-is
+    assert (
+        result["offers_count"] is None
+    )  # robust parsing returns None for invalid values
+
+
+def test_extract_stats_compact_cents_fixture():
+    import json
+    from pathlib import Path
+
+    from lotgenius.keepa_extract import extract_stats_compact
+
+    payload = json.loads(
+        Path("backend/tests/fixtures/keepa/product_with_stats_cents.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    got = extract_stats_compact(payload)
+    assert got["scaled_from_cents"] is True
+    assert abs(got["price_new_median"] - 199.99) < 1e-9
+    assert abs(got["price_used_median"] - 149.50) < 1e-9
+    assert got["salesrank_median"] == 12500
+    assert got["offers_count"] == 12

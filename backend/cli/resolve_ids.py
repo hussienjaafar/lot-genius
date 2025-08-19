@@ -60,6 +60,17 @@ def main(
     if with_stats and network:
         df, stats_ledger = enrich_keepa_stats(df, use_network=network)
         ledger.extend(stats_ledger)
+    elif with_stats:
+        # Add empty stats columns even when network is disabled
+        stats_cols = [
+            "keepa_price_new_med",
+            "keepa_price_used_med",
+            "keepa_salesrank_med",
+            "keepa_offers_count",
+        ]
+        for col in stats_cols:
+            if col not in df.columns:
+                df[col] = None
 
     out_enriched.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(out_enriched, index=False)
@@ -71,14 +82,13 @@ def main(
         vc = df["resolved_source"].dropna().value_counts()
         src_counts = {str(k): int(v) for k, v in vc.items()}
 
-    # Check for stats columns presence
     stats_cols = [
         "keepa_price_new_med",
         "keepa_price_used_med",
         "keepa_salesrank_med",
         "keepa_offers_count",
     ]
-    stats_columns_present = [col for col in stats_cols if col in df.columns]
+    stats_present = all(c in df.columns for c in stats_cols)
 
     payload = {
         "input": str(csv_path),
@@ -88,8 +98,14 @@ def main(
         "enriched_path": str(out_enriched),
         "ledger_path": str(final_ledger_path),
         "source_counts": src_counts,
-        "with_stats": bool(with_stats),
-        "stats_columns_present": stats_columns_present,
+        "with_stats_requested": bool(with_stats),
+        "with_stats": bool(with_stats and network),
+        "stats_columns_present": stats_present,
+        "stats_reason": (
+            None
+            if (with_stats and network)
+            else ("network disabled" if with_stats and not network else None)
+        ),
     }
     click.echo(json.dumps(payload, indent=2))
 

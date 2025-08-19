@@ -212,3 +212,5 @@ make resolve-with-stats
 
 - `with_stats`: boolean indicating if stats enrichment was requested
 - `stats_columns_present`: list of stats columns that were added to the output CSV
+- Price medians are auto-normalized from cents when detected; a `scaled_from_cents` boolean is recorded in the ledger's `keepa:stats.meta.compact`.
+- CLI summary includes `with_stats_requested`, `with_stats`, and `stats_reason` to clarify when stats were requested but skipped (e.g., `--no-network`).

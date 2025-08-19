@@ -258,19 +258,17 @@ def test_cli_with_stats_flag(monkeypatch, tmp_path):
 
     # Check payload includes stats info
     assert payload["with_stats"] is True
-    assert "stats_columns_present" in payload
+    assert payload["stats_columns_present"] is True
+
+    # Check that CSV file contains stats columns
+    assert out_csv.exists()
+    result_df = pd.read_csv(out_csv)
     expected_stats_cols = [
         "keepa_price_new_med",
         "keepa_price_used_med",
         "keepa_salesrank_med",
         "keepa_offers_count",
     ]
-    for col in expected_stats_cols:
-        assert col in payload["stats_columns_present"]
-
-    # Check that CSV file contains stats columns
-    assert out_csv.exists()
-    result_df = pd.read_csv(out_csv)
     for col in expected_stats_cols:
         assert col in result_df.columns
 
@@ -317,7 +315,7 @@ def test_cli_without_stats_flag(monkeypatch, tmp_path):
 
     # Check payload shows stats disabled
     assert payload["with_stats"] is False
-    assert payload["stats_columns_present"] == []
+    assert payload["stats_columns_present"] is False
 
     # Check CSV doesn't contain stats columns
     assert out_csv.exists()
@@ -330,3 +328,34 @@ def test_cli_without_stats_flag(monkeypatch, tmp_path):
     ]
     for col in stats_cols:
         assert col not in result_df.columns
+
+
+def test_cli_with_stats_but_no_network(monkeypatch, tmp_path):
+    # No patching -> ensure network is off so enrich isn't attempted
+    from cli.resolve_ids import main as resolve_cli
+
+    out_csv = tmp_path / "enriched.csv"
+    out_ledger = tmp_path / "ledger.jsonl"
+    from click.testing import CliRunner
+
+    runner = CliRunner()
+    res = runner.invoke(
+        resolve_cli,
+        [
+            "backend/tests/fixtures/manifest_multiqty.csv",
+            "--no-network",
+            "--with-stats",
+            "--out-enriched",
+            str(out_csv),
+            "--out-ledger",
+            str(out_ledger),
+        ],
+    )
+    assert res.exit_code == 0, res.output
+    payload = json.loads(res.output)
+    assert payload["with_stats_requested"] is True
+    assert payload["with_stats"] is False
+    assert payload["stats_reason"] == "network disabled"
+    assert (
+        payload["stats_columns_present"] is True
+    )  # columns still exist in output schema

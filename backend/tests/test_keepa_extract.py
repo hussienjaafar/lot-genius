@@ -25,6 +25,8 @@ def test_extract_stats_compact_with_stats():
     assert result["price_used_median"] == 2299.99
     assert result["salesrank_median"] == 125
     assert result["offers_count"] == 8
+    assert result.get("scaled_from_cents") in (False, None)
+    assert result.get("scale_rule") in (None, "")
 
 
 def test_extract_stats_compact_empty_payload():
@@ -37,6 +39,7 @@ def test_extract_stats_compact_empty_payload():
         "salesrank_median": None,
         "offers_count": None,
         "scaled_from_cents": False,
+        "scale_rule": None,
     }
     assert result == expected
 
@@ -51,6 +54,7 @@ def test_extract_stats_compact_none_payload():
         "salesrank_median": None,
         "offers_count": None,
         "scaled_from_cents": False,
+        "scale_rule": None,
     }
     assert result == expected
 
@@ -66,6 +70,7 @@ def test_extract_stats_compact_no_products():
         "salesrank_median": None,
         "offers_count": None,
         "scaled_from_cents": False,
+        "scale_rule": None,
     }
     assert result == expected
 
@@ -173,3 +178,5 @@ def test_extract_stats_compact_cents_fixture():
     assert abs(got["price_used_median"] - 149.50) < 1e-9
     assert got["salesrank_median"] == 12500
     assert got["offers_count"] == 12
+    assert got["scale_rule"] is not None
+    assert "divide by 100" in got["scale_rule"]

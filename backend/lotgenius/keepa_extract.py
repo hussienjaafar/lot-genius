@@ -24,15 +24,19 @@ def _to_int(x) -> Optional[int]:
     return None
 
 
+# NOTE: This is a conservative heuristic for Keepa medians that *might* be reported in cents.
+# If both medians look like large, integer-ish values (>=1000, or strongly integer >=200), we divide by 100.
+# Prefer false-negatives over false-positives; replace with a strict rule if you standardize units upstream.
 def _maybe_cents_to_unit(
     v_new: Optional[float], v_used: Optional[float]
-) -> tuple[Optional[float], Optional[float], bool]:
+) -> tuple[Optional[float], Optional[float], bool, Optional[str]]:
     """
     Heuristic: Keepa often reports medians in cents.
     If BOTH present and look like cents (large integers or >=100 with 0.99-ish patterns absent), divide by 100.
     We err on the side of not scaling when uncertain.
     """
     scaled = False
+    rule = None
     a, b = v_new, v_used
 
     # Helper to decide if a single value "looks like cents"
@@ -50,6 +54,7 @@ def _maybe_cents_to_unit(
                 a = v_new / 100.0
                 b = v_used / 100.0
                 scaled = True
+                rule = "heuristic:int-like>=1000 or >=200 → divide by 100"
         else:
             # If only one exists and it strongly looks like cents
             only = v_new if v_new is not None else v_used
@@ -59,8 +64,9 @@ def _maybe_cents_to_unit(
                 if v_used is not None:
                     b = v_used / 100.0
                 scaled = True
+                rule = "heuristic:int-like>=1000 or >=200 → divide by 100"
 
-    return a, b, scaled
+    return a, b, scaled, rule
 
 
 def extract_stats_compact(keepa_payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -71,6 +77,7 @@ def extract_stats_compact(keepa_payload: Dict[str, Any]) -> Dict[str, Any]:
       - salesrank_median
       - offers_count (int)
       - scaled_from_cents (bool)
+      - scale_rule (str|None) - description of scaling applied, if any
     """
     out = {
         "price_new_median": None,
@@ -78,6 +85,7 @@ def extract_stats_compact(keepa_payload: Dict[str, Any]) -> Dict[str, Any]:
         "salesrank_median": None,
         "offers_count": None,
         "scaled_from_cents": False,
+        "scale_rule": None,
     }
     try:
         products = (keepa_payload or {}).get("products") or []
@@ -95,7 +103,7 @@ def extract_stats_compact(keepa_payload: Dict[str, Any]) -> Dict[str, Any]:
         offers = _to_int(offers) if offers is not None else _to_int(stats.get("offers"))
 
         # Normalize possible cents
-        v_new_n, v_used_n, scaled = _maybe_cents_to_unit(v_new, v_used)
+        v_new_n, v_used_n, scaled, rule = _maybe_cents_to_unit(v_new, v_used)
 
         out.update(
             {
@@ -104,6 +112,7 @@ def extract_stats_compact(keepa_payload: Dict[str, Any]) -> Dict[str, Any]:
                 "salesrank_median": v_rank,
                 "offers_count": offers,
                 "scaled_from_cents": bool(scaled),
+                "scale_rule": rule if scaled else None,
             }
         )
         return out

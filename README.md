@@ -337,7 +337,7 @@ make estimate-sell
 
 **Tuning knobs:**
 
-- `--beta-price` (default 0.8): sensitivity of hazard to price premium via exp(-β·z)
+- `--beta-price` (default 0.8): sensitivity of hazard to price premium via exp(-β·z))
 - `--hazard-cap` (default 1.0): upper bound for daily hazard λ
 - `--baseline-daily-sales` (default 0.00): nonzero fallback market sales when rank is missing
 - `--rank-to-sales`: path to JSON power-law mapping (see backend/lotgenius/data/rank_to_sales.example.json)

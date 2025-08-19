@@ -4,7 +4,6 @@ from pathlib import Path
 import click
 import pandas as pd
 from lotgenius.pricing import estimate_prices
-from lotgenius.resolve import write_ledger_jsonl  # reuse gzip-aware writer
 
 
 @click.command()
@@ -88,7 +87,7 @@ def main(
     df2.to_csv(out_csv, index=False)
 
     # Combine with prior ledger if provided
-    ledger_records = []
+    combined_records = []
     if ledger_in:
         try:
             import gzip
@@ -97,24 +96,44 @@ def main(
             p = Path(ledger_in)
             if str(p).endswith(".gz"):
                 with gzip.open(p, "rt", encoding="utf-8") as f:
-                    ledger_records.extend(
+                    combined_records.extend(
                         [_json.loads(line) for line in f if line.strip()]
                     )
             else:
                 with open(p, "r", encoding="utf-8") as f:
-                    ledger_records.extend(
+                    combined_records.extend(
                         [_json.loads(line) for line in f if line.strip()]
                     )
         except Exception:
             pass
+
     # Append new events
     from dataclasses import asdict
 
-    ledger_records.extend([asdict(x) for x in price_ledger])
+    combined_records.extend([asdict(x) for x in price_ledger])
 
-    # Write out with gzip option
-    final_ledger_path = write_ledger_jsonl(
-        price_ledger, ledger_out, gzip_output=gzip_ledger
+    # Write combined records using the shared writer
+    # (writer takes EvidenceRecord list, so we serialize ourselves)
+    # Provide a small helper here:
+    def _write_jsonl(records, out_path, gzip_output=False):
+        out_path = Path(out_path)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        if gzip_output and not str(out_path).endswith(".gz"):
+            out_path = out_path.with_suffix(out_path.suffix + ".gz")
+        opener = (
+            (lambda p: gzip.open(p, "wt", encoding="utf-8"))
+            if gzip_output
+            else (lambda p: open(p, "w", encoding="utf-8"))
+        )
+        import json as _json
+
+        with opener(out_path) as f:
+            for r in records:
+                f.write(_json.dumps(r, ensure_ascii=False) + "\n")
+        return out_path
+
+    final_ledger_path = _write_jsonl(
+        combined_records, ledger_out, gzip_output=gzip_ledger
     )
 
     payload = {

@@ -388,6 +388,7 @@ make optimize-bid
 - `--min-cash-60d` (optional cash recovery constraint)
 - `--min-cash-60d-p5` (optional P5 cash recovery constraint for VaR)
 - `--lot-fixed-cost` (default 0.0): fixed cost added to bid in ROI denominator
+- `--include-samples/--no-include-samples` (default --no-include-samples): include raw simulation arrays in JSON output
 
 Random seed & tolerance controllable.
 

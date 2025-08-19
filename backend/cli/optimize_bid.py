@@ -80,6 +80,12 @@ def _to_json_serializable(obj):
     help="Fixed cost added to bid in ROI denominator",
 )
 @click.option("--seed", default=1337, show_default=True, type=int)
+@click.option(
+    "--include-samples/--no-include-samples",
+    default=False,
+    show_default=True,
+    help="Include raw simulation arrays in JSON output",
+)
 def main(
     input_csv,
     out_json,
@@ -103,6 +109,7 @@ def main(
     salvage_fee_pct,
     lot_fixed_cost,
     seed,
+    include_samples,
 ):
     """
     Optimize lot bid using Monte Carlo simulation and bisection search.
@@ -133,9 +140,16 @@ def main(
     )
     out_json = Path(out_json)
     out_json.parent.mkdir(parents=True, exist_ok=True)
-    out_json.write_text(
-        json.dumps(_to_json_serializable(result), indent=2), encoding="utf-8"
-    )
+
+    # Prepare result for JSON output
+    json_result = _to_json_serializable(result.copy())
+    if not include_samples:
+        # Remove raw simulation arrays but keep summaries
+        json_result.pop("revenue", None)
+        json_result.pop("cash_60d", None)
+        json_result.pop("roi", None)
+
+    out_json.write_text(json.dumps(json_result, indent=2), encoding="utf-8")
     click.echo(
         json.dumps(
             {

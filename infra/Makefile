@@ -219,6 +219,10 @@ PY
 report-lot:
 	$(PYTHON) -m backend.cli.report_lot data/out/estimated_sell.csv data/out/optimize_bid.json --out-markdown data/out/lot_report.md --sweep-csv data/out/sweep_bid.csv --sweep-png data/out/sweep_bid.png --evidence-jsonl data/evidence/optimize_evidence.jsonl
 
+## Start Lot Genius API server (Step 10)
+api:
+	uvicorn backend.app.main:app --reload --port 8787
+
 ## Show available commands
 help:
 	@echo "Available commands:"

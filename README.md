@@ -527,3 +527,96 @@ make report-lot
 - If pandoc is unavailable, conversion is skipped with a warning (markdown is always generated)
 - Report focuses on investment decision; detailed technical analysis is available in referenced artifacts
 - Report now renders Meets All Constraints as Yes/No/N/A when missing, and wires ROI Target/Risk Threshold from optimizer JSON (or evidence NDJSON if provided)
+
+## Step 10 — FastAPI Report API (Experimental)
+
+Expose the existing lot report generator as an HTTP API with basic streaming progress events.
+
+**Start the API server:**
+
+```bash
+# Start development server
+make api
+# Or directly:
+uvicorn backend.app.main:app --reload --port 8787
+```
+
+**CORS:** Configured for localhost origins by default.
+
+**Security:** If `LOTGENIUS_API_KEY` environment variable is set, requests must include `X-API-Key` header. Otherwise, API is open.
+
+**Endpoints:**
+
+- `GET /healthz` → Health check
+- `POST /v1/report` → Generate report (blocking)
+- `POST /v1/report/stream` → Generate report with SSE progress events
+
+**Blocking report generation:**
+
+```bash
+curl -X POST http://localhost:8787/v1/report \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "items_csv": "data/out/estimated_sell.csv",
+    "opt_json_path": "data/out/optimize_bid.json",
+    "out_markdown": "data/out/api_report.md"
+  }'
+```
+
+**Streaming report generation:**
+
+```bash
+curl -N -X POST http://localhost:8787/v1/report/stream \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "items_csv": "data/out/estimated_sell.csv",
+    "opt_json_path": "data/out/optimize_bid.json"
+  }'
+```
+
+**Using inline optimizer JSON:**
+
+```bash
+curl -X POST http://localhost:8787/v1/report \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "items_csv": "data/out/estimated_sell.csv",
+    "opt_json_inline": {"bid": 100.0, "roi_target": 1.25, "meets_constraints": true}
+  }'
+```
+
+**Response format:**
+
+```json
+{
+  "status": "ok",
+  "markdown_path": "data/out/api_report.md",
+  "html_path": null,
+  "pdf_path": null,
+  "markdown_preview": "# Lot Genius Report\n\n## Executive Summary..."
+}
+```
+
+**Streaming events:**
+
+- `start` — Validated inputs
+- `generate_markdown` — Markdown generation complete
+- `html` — HTML conversion (if requested)
+- `pdf` — PDF conversion (if requested)
+- `done` — All processing complete
+
+**Features:**
+
+- **Direct Python calls:** No subprocess overhead; imports report_lot functions directly
+- **File validation:** Checks existence of items_csv, opt_json_path, evidence_jsonl
+- **Temporary files:** Inline JSON data written to `data/api/tmp/` with cleanup
+- **Progress streaming:** Server-Sent Events for real-time progress updates
+- **Preview included:** Response includes truncated markdown content for quick review
+- **HTML/PDF support:** Reuses existing pandoc conversion utilities from CLI
+
+**Notes:**
+
+- API reuses all existing business logic from `lotgenius.cli.report_lot`
+- Report content matches CLI output for identical inputs
+- No eBay usage; maintains Keepa-only constraints
+- HTML/PDF conversion requires pandoc (same as CLI)

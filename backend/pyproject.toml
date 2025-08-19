@@ -12,7 +12,9 @@ dependencies = [
   "python-dotenv>=1.0",
   "click>=8.1",
   "great-expectations>=0.18",
-  "requests>=2.32"
+  "requests>=2.32",
+  "fastapi>=0.100",
+  "uvicorn[standard]>=0.20"
 ]
 
 [build-system]

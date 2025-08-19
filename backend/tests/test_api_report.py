@@ -178,18 +178,27 @@ def test_api_key_optional_when_not_set(temp_data):
 
 def test_stream_sse_headers_and_events(temp_data):
     """Test SSE headers and basic event structure."""
-    resp = client.post(
+    # Use streaming context manager for SSE
+    with client.stream(
+        "POST",
         "/v1/report/stream",
         json={
             "items_csv": temp_data["items_csv"],
             "opt_json_path": temp_data["opt_json"],
         },
-        headers={"Accept": "text/event-stream"},
-    )
-    # NB: TestClient buffers; we can at least assert content contains start/done
-    body = resp.text
-    assert resp.headers.get("content-type", "").startswith("text/event-stream")
-    assert "data:" in body and "start" in body and "done" in body
+    ) as resp:
+        # Validate content-type and that we got some SSE lines
+        assert resp.status_code == 200
+        ctype = resp.headers.get("content-type", "")
+        assert ctype.startswith("text/event-stream")
+        body = ""
+        for chunk in resp.iter_text():
+            body += chunk
+            if "done" in body:
+                break
+        assert "data:" in body
+        assert "start" in body
+        assert "done" in body
 
 
 def test_stream_requires_api_key_when_set(temp_data, monkeypatch):
@@ -201,17 +210,24 @@ def test_stream_requires_api_key_when_set(temp_data, monkeypatch):
         "opt_json_path": temp_data["opt_json"],
     }
 
-    r_no = client.post("/v1/report/stream", json=payload)
-    assert r_no.status_code == 401
+    r_missing = client.post("/v1/report/stream", json=payload)
+    assert r_missing.status_code == 401
 
-    r_bad = client.post(
-        "/v1/report/stream", json=payload, headers={"X-API-Key": "wrong"}
+    r_wrong = client.post(
+        "/v1/report/stream", headers={"X-API-Key": "wrong"}, json=payload
     )
-    assert r_bad.status_code == 401
+    assert r_wrong.status_code == 401
 
-    r_ok = client.post(
-        "/v1/report/stream", json=payload, headers={"X-API-Key": "secret123"}
-    )
-    assert r_ok.status_code == 200
-    # spot check body:
-    assert "data:" in r_ok.text and "start" in r_ok.text and "done" in r_ok.text
+    with client.stream(
+        "POST",
+        "/v1/report/stream",
+        headers={"X-API-Key": "secret123"},
+        json=payload,
+    ) as r_ok:
+        assert r_ok.status_code == 200
+        text = ""
+        for chunk in r_ok.iter_text():
+            text += chunk
+            if "done" in text:
+                break
+        assert "data:" in text and "start" in text and "done" in text

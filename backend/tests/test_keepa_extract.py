@@ -17,16 +17,21 @@ def test_extract_stats_compact_with_stats():
         "price_used_median",
         "salesrank_median",
         "offers_count",
+        "scaled_from_cents",
+        "scale_rule",
     ]
-    assert all(k in result for k in expected_keys)
+    for k in expected_keys:
+        assert k in result
+
+    # NEW: non-cents fixture must not trigger scaling
+    assert result.get("scaled_from_cents") in (False, None)
+    assert result.get("scale_rule") in (None, "")
 
     # Check that stats values are extracted correctly from fixture
     assert result["price_new_median"] == 2575.50
     assert result["price_used_median"] == 2299.99
     assert result["salesrank_median"] == 125
     assert result["offers_count"] == 8
-    assert result.get("scaled_from_cents") in (False, None)
-    assert result.get("scale_rule") in (None, "")
 
 
 def test_extract_stats_compact_empty_payload():

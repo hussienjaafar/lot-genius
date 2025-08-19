@@ -4,6 +4,7 @@ import json
 import math
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
@@ -20,6 +21,103 @@ class SourceStat:
     n: int  # sample/strength proxy (>=1)
     recency: float  # 0..1
     prior: float  # 0..1 prior weight
+
+
+def load_category_priors(path: Optional[Path]) -> Dict[str, Any]:
+    """
+    Load category priors from JSON. Expected schema:
+    {
+      "category_name": {
+        "p20_floor_abs": float|null,
+        "p20_floor_frac_of_mu": float
+      },
+      ...
+    }
+    Returns empty dict if path is None or file doesn't exist.
+    """
+    if path is None:
+        return {}
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _category_key_from_row(row: pd.Series) -> Optional[str]:
+    """
+    Extract category key from row. Can be adapted to your schema.
+    For now, try common column names like 'category', 'cat', 'category_name'.
+    """
+    for col in ["category", "cat", "category_name", "product_category"]:
+        val = row.get(col)
+        if isinstance(val, str) and val.strip():
+            return val.strip()
+    return None
+
+
+def _apply_conservative_floor(
+    p5: float,
+    mu: float,
+    row: pd.Series,
+    category_priors: Dict[str, Any],
+    salvage_floor_frac: Optional[float] = None,
+) -> Tuple[float, Optional[str], Optional[str]]:
+    """
+    Apply conservative floor to P5, returning (floored_p5, floor_rule, category).
+
+    Args:
+        p5: Original P5 estimate
+        mu: Original μ estimate
+        row: DataFrame row
+        category_priors: Category priors dict
+        salvage_floor_frac: Optional salvage floor as fraction of μ
+
+    Returns:
+        (floored_p5, floor_rule, category)
+        - floored_p5: P5 after applying floor
+        - floor_rule: String describing which rule was applied ("category_abs", "category_frac", "salvage", None)
+        - category: Category key that was used (if any)
+    """
+    category = _category_key_from_row(row)
+
+    floors = []
+    floor_rules = []
+
+    # Category-based floors
+    if category and category in category_priors:
+        cat_config = category_priors[category]
+
+        # Absolute floor
+        if cat_config.get("p20_floor_abs") is not None:
+            floors.append(float(cat_config["p20_floor_abs"]))
+            floor_rules.append("category_abs")
+
+        # Fraction of μ floor
+        if cat_config.get("p20_floor_frac_of_mu") is not None:
+            frac_floor = mu * float(cat_config["p20_floor_frac_of_mu"])
+            floors.append(frac_floor)
+            floor_rules.append("category_frac")
+
+    # Salvage floor
+    if salvage_floor_frac is not None:
+        salvage_floor = mu * salvage_floor_frac
+        floors.append(salvage_floor)
+        floor_rules.append("salvage")
+
+    # Apply highest floor
+    if not floors:
+        return p5, None, category
+
+    max_floor = max(floors)
+    if p5 >= max_floor:
+        return p5, None, category
+
+    # Find which rule created the max floor
+    max_idx = floors.index(max_floor)
+    applied_rule = floor_rules[max_idx]
+
+    return max_floor, applied_rule, category
 
 
 def _safe_float(x) -> Optional[float]:
@@ -183,12 +281,16 @@ def estimate_prices(
     cv_fallback: float = 0.20,
     priors: Optional[Dict[str, float]] = None,
     use_used_for_nonnew: bool = True,
+    category_priors_path: Optional[Path] = None,
+    salvage_floor_frac: Optional[float] = None,
 ) -> Tuple[pd.DataFrame, List[EvidenceRecord]]:
     """
     Compute per-row μ, σ and P5/P50/P95. Adds columns:
       est_price_mu, est_price_sigma, est_price_p5, est_price_p50, est_price_p95, est_price_sources
+      est_price_p5_floored, est_price_floor_rule, est_price_category
     """
     priors = priors or {"keepa": 0.50, "ebay": 0.35, "other": 0.15}
+    category_priors = load_category_priors(category_priors_path)
 
     df = df_in.copy()
     for col in [
@@ -198,6 +300,9 @@ def estimate_prices(
         "est_price_p50",
         "est_price_p95",
         "est_price_sources",
+        "est_price_p5_floored",
+        "est_price_floor_rule",
+        "est_price_category",
     ]:
         if col not in df.columns:
             df[col] = None
@@ -217,6 +322,11 @@ def estimate_prices(
             p50 = _clip_pos(_pctl_normal(mu, sigma, 0.50))
             p95 = _clip_pos(_pctl_normal(mu, sigma, 0.95))
 
+            # Apply conservative floor
+            p5_floored, floor_rule, category = _apply_conservative_floor(
+                p5, mu, row, category_priors, salvage_floor_frac
+            )
+
             df.at[idx, "est_price_mu"] = float(mu)
             df.at[idx, "est_price_sigma"] = float(sigma)
             df.at[idx, "est_price_p5"] = float(p5)
@@ -225,6 +335,9 @@ def estimate_prices(
             df.at[idx, "est_price_sources"] = json.dumps(
                 meta["sources"], ensure_ascii=False
             )
+            df.at[idx, "est_price_p5_floored"] = float(p5_floored)
+            df.at[idx, "est_price_floor_rule"] = floor_rule
+            df.at[idx, "est_price_category"] = category
             ok = True
         else:
             ok = False

@@ -1,0 +1,10 @@
+{
+  "Electronics": {
+    "p20_floor_abs": 10.0,
+    "p20_floor_frac_of_mu": 0.20
+  },
+  "Books": {
+    "p20_floor_abs": null,
+    "p20_floor_frac_of_mu": 0.15
+  }
+}

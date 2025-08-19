@@ -58,6 +58,30 @@ from lotgenius.pricing import estimate_prices
     show_default=True,
     help="Compress ledger as JSONL.GZ",
 )
+@click.option(
+    "--category-priors",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=None,
+    help="Path to category priors JSON file for conservative floors",
+)
+@click.option(
+    "--salvage-floor-frac",
+    type=float,
+    default=None,
+    help="Salvage floor as fraction of μ (e.g., 0.1 for 10%)",
+)
+@click.option(
+    "--price-evidence-out",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None,
+    help="Path to write compact price evidence NDJSON",
+)
+@click.option(
+    "--gzip-evidence/--no-gzip-evidence",
+    default=False,
+    show_default=True,
+    help="Compress price evidence as NDJSON.GZ",
+)
 def main(
     input_csv: Path,
     cv_fallback: float,
@@ -69,6 +93,10 @@ def main(
     ledger_in: Path | None,
     ledger_out: Path,
     gzip_ledger: bool,
+    category_priors: Path | None,
+    salvage_floor_frac: float | None,
+    price_evidence_out: Path | None,
+    gzip_evidence: bool,
 ):
     """
     Compute per-item price distributions (μ, σ, P5/P50/P95) from enriched CSV (Step 6),
@@ -81,6 +109,8 @@ def main(
         cv_fallback=cv_fallback,
         priors=priors,
         use_used_for_nonnew=use_used_for_nonnew,
+        category_priors_path=category_priors,
+        salvage_floor_frac=salvage_floor_frac,
     )
 
     out_csv.parent.mkdir(parents=True, exist_ok=True)
@@ -116,6 +146,9 @@ def main(
     # (writer takes EvidenceRecord list, so we serialize ourselves)
     # Provide a small helper here:
     def _write_jsonl(records, out_path, gzip_output=False):
+        import gzip
+        import json as _json
+
         out_path = Path(out_path)
         out_path.parent.mkdir(parents=True, exist_ok=True)
         if gzip_output and not str(out_path).endswith(".gz"):
@@ -125,7 +158,6 @@ def main(
             if gzip_output
             else (lambda p: open(p, "w", encoding="utf-8"))
         )
-        import json as _json
 
         with opener(out_path) as f:
             for r in records:
@@ -136,6 +168,31 @@ def main(
         combined_records, ledger_out, gzip_output=gzip_ledger
     )
 
+    # Export compact price evidence if requested
+    price_evidence_path = None
+    if price_evidence_out:
+        evidence_records = []
+        for idx, row in df2.iterrows():
+            if pd.notna(row.get("est_price_mu")):
+                evidence_record = {
+                    "row_index": int(idx),
+                    "sku_local": row.get("sku_local"),
+                    "est_price_mu": row.get("est_price_mu"),
+                    "est_price_p5": row.get("est_price_p5"),
+                    "est_price_p5_floored": row.get("est_price_p5_floored"),
+                    "est_price_floor_rule": row.get("est_price_floor_rule"),
+                    "est_price_category": row.get("est_price_category"),
+                }
+                # Remove None values for compactness
+                evidence_record = {
+                    k: v for k, v in evidence_record.items() if v is not None
+                }
+                evidence_records.append(evidence_record)
+
+        price_evidence_path = _write_jsonl(
+            evidence_records, price_evidence_out, gzip_output=gzip_evidence
+        )
+
     payload = {
         "input": str(input_csv),
         "rows": int(df2.shape[0]),
@@ -144,6 +201,8 @@ def main(
         "ledger_path": str(final_ledger_path),
         "sources_used_sample": df2["est_price_sources"].dropna().head(3).tolist(),
     }
+    if price_evidence_path:
+        payload["price_evidence_path"] = str(price_evidence_path)
     click.echo(json.dumps(payload, indent=2))
 
 

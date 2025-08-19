@@ -242,3 +242,52 @@ make estimate-prices
 - CV fallback defaults to 0.20; adjust per category once you have richer data
 - Percentiles use a normal approximation and are clipped at 0
 - Condition-aware: prefers `new` median for New/Like-New items, `used` median otherwise
+
+## Step 7.1 — Category Floors & Price Evidence (Conservative Pricing)
+
+Apply conservative floors to P5 estimates using category priors and export compact price evidence for UI consumption.
+
+```bash
+# Input: enriched CSV from Step 6 (has keepa_* columns)
+python -m backend.cli.estimate_price data/out/resolved_with_stats.csv \
+  --cv-fallback 0.20 \
+  --prior-keepa 0.50 --prior-ebay 0.35 --prior-other 0.15 \
+  --out-csv data/out/estimated_prices_floored.csv \
+  --ledger-out data/evidence/price_ledger_floored.jsonl \
+  --category-priors backend/lotgenius/data/category_priors.example.json \
+  --salvage-floor-frac 0.10 \
+  --price-evidence-out data/out/price_evidence.ndjson \
+  --gzip-evidence
+
+# Or use the Makefile shortcut
+make estimate-prices-with-floors
+```
+
+**New columns:**
+
+- `est_price_p5_floored` — P5 after applying conservative floor (if any)
+- `est_price_floor_rule` — Which floor rule was applied ("category_abs", "category_frac", "salvage", null)
+- `est_price_category` — Category detected from row (used for floor lookup)
+
+**Category Priors Schema:**
+
+```json
+{
+  "Electronics": {
+    "p20_floor_abs": 5.0,
+    "p20_floor_frac_of_mu": 0.15
+  },
+  "Books": {
+    "p20_floor_abs": null,
+    "p20_floor_frac_of_mu": 0.1
+  }
+}
+```
+
+**Features:**
+
+- **Category-based floors:** Uses category priors JSON to apply absolute or μ-fraction floors
+- **Salvage floor:** Optional fallback floor as fraction of μ (e.g., 0.10 = 10%)
+- **Conservative logic:** Applies highest available floor when P5 falls below
+- **Compact evidence export:** NDJSON with essential price data for fast UI reads
+- **Backward compatible:** All new columns/flags are optional

@@ -176,6 +176,10 @@ resolve-with-stats:
 estimate-prices:
 	$(PYTHON) -m backend.cli.estimate_price data/out/resolved_with_stats.csv --out-csv data/out/estimated_prices.csv --ledger-out data/evidence/price_ledger.jsonl
 
+## Estimate prices with category floors and price evidence (Step 7.1)
+estimate-prices-with-floors:
+	$(PYTHON) -m backend.cli.estimate_price data/out/resolved_with_stats.csv --out-csv data/out/estimated_prices_floored.csv --ledger-out data/evidence/price_ledger_floored.jsonl --category-priors backend/lotgenius/data/category_priors.example.json --salvage-floor-frac 0.10 --price-evidence-out data/out/price_evidence.ndjson --gzip-evidence
+
 ## Show available commands
 help:
 	@echo "Available commands:"
@@ -200,6 +204,7 @@ help:
 	@echo "  make resolve-with-keepa - Resolve IDs with Keepa network lookups"
 	@echo "  make resolve-with-stats - Resolve IDs with Keepa stats enrichment"
 	@echo "  make estimate-prices - Estimate prices from enriched CSV (Step 7)"
+	@echo "  make estimate-prices-with-floors - Estimate prices with category floors and price evidence (Step 7.1)"
 	@echo "  make run-dev     - Start development server"
 	@echo "  make run-prod    - Start production server"
 	@echo "  make docker-build - Build Docker image"

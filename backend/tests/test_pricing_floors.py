@@ -239,3 +239,33 @@ def test_category_fallback_to_default():
     # Backward-compat keys should still exist
     assert "p5" in meta
     assert "p5_floored" in meta
+
+
+def test_used_category_fallback_written(tmp_path):
+    """Test used category fallback is written correctly and evidence meta always includes keys."""
+    import json
+
+    priors = {"default": {"p20_floor_abs": None, "p20_floor_frac_of_mu": 0.0}}
+    p = tmp_path / "priors.json"
+    p.write_text(json.dumps(priors), encoding="utf-8")
+    df = pd.DataFrame(
+        [
+            {
+                "sku_local": "W1",
+                "condition": "New",
+                "category_hint": "widgets_not_in_priors",
+                "keepa_price_new_med": 40.0,
+                "keepa_offers_count": 4,
+            }
+        ]
+    )
+    out, ledger = estimate_prices(
+        df, category_priors_path=str(p), salvage_floor_frac=0.0
+    )
+    assert out.loc[0, "est_price_category"] == "default"
+    ev = next(e for e in ledger if e.source == "price:estimate")
+    assert ev.meta["category_requested"] == "widgets_not_in_priors"
+    assert ev.meta["category_used"] == "default"
+    assert ev.meta["category_fallback"] is True
+    # new uniform keys present
+    assert "est_price_p5" in ev.meta and "est_price_p5_floored" in ev.meta

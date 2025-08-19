@@ -323,18 +323,18 @@ def estimate_prices(
         )
         mu, sigma, meta = triangulate_price(srcs)
 
+        # Track category fallback for evidence - compute unconditionally
+        requested_key = _category_key_from_row(row)
+        used_key = (
+            requested_key
+            if requested_key and requested_key in category_priors
+            else "default"
+        )
+
         if mu is not None and sigma is not None:
             p5 = _clip_pos(_pctl_normal(mu, sigma, 0.05))
             p50 = _clip_pos(_pctl_normal(mu, sigma, 0.50))
             p95 = _clip_pos(_pctl_normal(mu, sigma, 0.95))
-
-            # Track category fallback for evidence
-            requested_key = _category_key_from_row(row)
-            used_key = (
-                requested_key
-                if requested_key and requested_key in category_priors
-                else "default"
-            )
 
             # Apply conservative floor
             p5_floored, floor_rule, category = _apply_conservative_floor(
@@ -351,14 +351,14 @@ def estimate_prices(
             )
             df.at[idx, "est_price_p5_floored"] = float(p5_floored)
             df.at[idx, "est_price_floor_rule"] = floor_rule
-            df.at[idx, "est_price_category"] = used_key
+            df.at[idx, "est_price_category"] = used_key  # Always use used_key
             ok = True
         else:
             ok = False
 
-        # Evidence - build enhanced meta with fallback info and unified naming
+        # Evidence - build enhanced meta tied to ok=True, not mu/sigma guard
         evidence_meta = {"triangulation": meta}
-        if mu is not None and sigma is not None:
+        if ok:
             evidence_meta.update(
                 {
                     "category_requested": requested_key,
@@ -366,10 +366,12 @@ def estimate_prices(
                     "category_fallback": bool(used_key != requested_key),
                     # Unified naming - duplicate "est_" keys for uniform access
                     "est_price_p5": p5,
-                    "est_price_p5_floored": float(p5_floored),
+                    "est_price_p5_floored": (
+                        float(p5_floored) if p5_floored is not None else None
+                    ),
                     # Keep backward-compat keys
                     "p5": p5,
-                    "p5_floored": float(p5_floored),
+                    "p5_floored": float(p5_floored) if p5_floored is not None else None,
                 }
             )
 

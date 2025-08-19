@@ -67,6 +67,19 @@ python -m backend.cli.map_preview backend/tests/fixtures/manifest_sample.csv --s
 python -m backend.cli.map_preview backend/tests/fixtures/manifest_sample.csv --fail-on-duplicates
 ```
 
+## Validate Manifests (Step 3)
+
+```bash
+# Install backend once
+python -m pip install -e backend
+
+# Validate one file (JSON output)
+python -m backend.cli.validate_manifest data/golden_manifests/01_basic.csv
+
+# Validate the whole golden set
+make validate-golden
+```
+
 ## Next Steps
 
 - ✅ Canonical schema & header mapping

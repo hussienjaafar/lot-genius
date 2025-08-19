@@ -110,6 +110,19 @@ map-preview-strict:
 	@echo "Running header mapping preview with strict duplicate checking..."
 	$(PYTHON) -m backend.cli.map_preview backend/tests/fixtures/manifest_sample.csv --fail-on-duplicates
 
+## Validate one golden manifest
+validate-one:
+	@echo "Validating single golden manifest..."
+	$(PYTHON) -m backend.cli.validate_manifest data/golden_manifests/01_basic.csv
+
+## Validate all golden manifests
+validate-golden:
+	@echo "Validating all golden manifests..."
+	@for f in data/golden_manifests/*.csv; do \
+	  echo "Validating $$f"; \
+	  $(PYTHON) -m backend.cli.validate_manifest "$$f" || exit 1; \
+	done
+
 ## Show available commands
 help:
 	@echo "Available commands:"
@@ -122,6 +135,8 @@ help:
 	@echo "  make map-preview - Preview header mappings"
 	@echo "  make map-preview-candidates - Preview with suggestions"
 	@echo "  make map-preview-strict - Preview with strict duplicate checking"
+	@echo "  make validate-one - Validate single golden manifest"
+	@echo "  make validate-golden - Validate all golden manifests"
 	@echo "  make run-dev     - Start development server"
 	@echo "  make run-prod    - Start production server"
 	@echo "  make docker-build - Build Docker image"

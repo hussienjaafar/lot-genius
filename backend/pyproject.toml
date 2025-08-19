@@ -10,7 +10,8 @@ dependencies = [
   "pydantic>=2.7",
   "pydantic-settings>=2.2",
   "python-dotenv>=1.0",
-  "click>=8.1"
+  "click>=8.1",
+  "great-expectations>=0.18"
 ]
 
 [build-system]

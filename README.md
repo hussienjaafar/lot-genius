@@ -320,7 +320,8 @@ Compute per-item P(sold ≤ 60d) "p60" using a conservative, explainable proxy s
 python -m backend.cli.estimate_sell data/out/estimated_prices.csv \
   --out-csv data/out/estimated_sell.csv \
   --evidence-out data/evidence/sell_evidence.jsonl \
-  --days 60 --list-price-mode p50 --list-price-multiplier 1.0
+  --days 60 --list-price-mode p50 --list-price-multiplier 1.0 \
+  --baseline-daily-sales 0.00  # fallback daily market sales when rank is missing
 
 # Or use the Makefile shortcut
 make estimate-sell
@@ -328,11 +329,18 @@ make estimate-sell
 
 **New columns:**
 
-- `sell_p60` — P(sold ≤ 60 days) survival probability
-- `sell_hazard_daily` — Daily hazard rate (λ)
-- `sell_ptm_z` — Price-to-market z-score at chosen list price
-- `sell_rank_used` — Sales rank used for calculation
-- `sell_offers_used` — Offers count used for saturation
+- `sell_p60` — probability item sells within the horizon (default 60d)
+- `sell_hazard_daily` — per-item daily hazard λ used in survival calc
+- `sell_ptm_z` — price-to-market z-score at chosen list price
+- `sell_rank_used` — sales rank used (if available)
+- `sell_offers_used` — offers count used for saturation
+
+**Tuning knobs:**
+
+- `--beta-price` (default 0.8): sensitivity of hazard to price premium via exp(-β·z)
+- `--hazard-cap` (default 1.0): upper bound for daily hazard λ
+- `--baseline-daily-sales` (default 0.00): nonzero fallback market sales when rank is missing
+- `--rank-to-sales`: path to JSON power-law mapping (see backend/lotgenius/data/rank_to_sales.example.json)
 
 **Features:**
 

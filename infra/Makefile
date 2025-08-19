@@ -200,6 +200,21 @@ optimize-bid-evidence:
 join-bid:
 	$(PYTHON) -m backend.cli.join_bid --items-csv data/out/estimated_sell.csv --opt-json data/out/optimize_bid.json --out-csv data/out/lot_summary.csv --mode one-row
 
+## Create bid sensitivity visualization from sweep_bid.csv (optional, requires matplotlib)
+plot-sweep:
+	python - <<'PY'
+import pandas as pd, matplotlib.pyplot as plt
+df = pd.read_csv("data/out/sweep_bid.csv")
+ax = df.plot(x="bid", y="prob_roi_ge_target", legend=False)
+ax.set_ylabel("P(ROI ≥ target)")
+ax2 = ax.twinx()
+df.plot(x="bid", y="roi_p50", ax=ax2, legend=False, style="--")
+ax2.set_ylabel("ROI P50")
+plt.title("Lot Genius — Bid sensitivity")
+plt.savefig("data/out/sweep_bid.png", dpi=150, bbox_inches="tight")
+print("Wrote data/out/sweep_bid.png")
+PY
+
 ## Show available commands
 help:
 	@echo "Available commands:"

@@ -47,6 +47,11 @@ def main(items_csv, opt_json, out_csv, mode):
         ),
         "meets_constraints": bool(opt.get("meets_constraints", False)),
     }
+    # Add roi_target and risk_threshold if present in optimizer JSON
+    summary.update({
+        "roi_target": float(opt.get("roi_target")) if "roi_target" in opt else None,
+        "risk_threshold": float(opt.get("risk_threshold")) if "risk_threshold" in opt else None,
+    })
     out_path = Path(out_csv)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 

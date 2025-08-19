@@ -422,3 +422,39 @@ Optimizer JSON is compact by default (no per-simulation arrays). Use `--include-
   ```
 
 **Notes**: Arrays are compact by default (`--include-samples` to embed them). Sweep runs the same feasibility check as the optimizer across a grid of bids.
+
+**Quick visualization (optional)**  
+Turn `sweep_bid.csv` into a simple chart (requires `matplotlib`):
+
+```bash
+python - <<'PY'
+import pandas as pd, matplotlib.pyplot as plt
+df = pd.read_csv("data/out/sweep_bid.csv")
+ax = df.plot(x="bid", y="prob_roi_ge_target", legend=False)
+ax.set_ylabel("P(ROI ≥ target)")
+ax2 = ax.twinx()
+df.plot(x="bid", y="roi_p50", ax=ax2, legend=False, style="--")
+ax2.set_ylabel("ROI P50")
+plt.title("Lot Genius — Bid sensitivity")
+plt.savefig("data/out/sweep_bid.png", dpi=150, bbox_inches="tight")
+print("Wrote data/out/sweep_bid.png")
+PY
+```
+
+(Optional) Makefile helper:
+
+```make
+plot-sweep:
+\tpython - <<'PY'
+import pandas as pd, matplotlib.pyplot as plt
+df = pd.read_csv("data/out/sweep_bid.csv")
+ax = df.plot(x="bid", y="prob_roi_ge_target", legend=False)
+ax.set_ylabel("P(ROI ≥ target)")
+ax2 = ax.twinx()
+df.plot(x="bid", y="roi_p50", ax=ax2, legend=False, style="--")
+ax2.set_ylabel("ROI P50")
+plt.title("Lot Genius — Bid sensitivity")
+plt.savefig("data/out/sweep_bid.png", dpi=150, bbox_inches="tight")
+print("Wrote data/out/sweep_bid.png")
+PY
+```

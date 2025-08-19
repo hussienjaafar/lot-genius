@@ -108,11 +108,45 @@ python -m backend.cli.parse_clean backend/tests/fixtures/manifest_multiqty.csv -
 python -m backend.cli.parse_clean backend/tests/fixtures/manifest_multiqty.csv --no-explode
 ```
 
+## ID Resolution → ASIN (Step 5)
+
+```bash
+# From repo root
+python -m pip install -e backend
+
+# Set up your Keepa API key  # pragma: allowlist secret
+export KEEPA_API_KEY="your_keepa_api_key_here"  # pragma: allowlist secret
+
+# Resolve IDs for a test fixture
+make resolve-test
+
+# Resolve IDs for a custom CSV file
+make resolve FILE=data/your_manifest.csv
+
+# Alternatively, use the CLI directly
+python -m backend.cli.resolve_ids backend/tests/fixtures/manifest_multiqty.csv
+
+# Custom output paths
+python -m backend.cli.resolve_ids input.csv --output-csv enriched.csv --output-ledger evidence.jsonl
+
+# Override API key via CLI  # pragma: allowlist secret
+python -m backend.cli.resolve_ids input.csv --keepa-key your_key_here  # pragma: allowlist secret
+```
+
+**Features:**
+
+- **Keepa Integration:** Uses UPC/EAN/ASIN to resolve canonical ASINs
+- **Evidence Ledger:** JSONL audit trail for every resolution attempt
+- **Caching:** SQLite-based cache with configurable TTL (default: 7 days)
+- **Retry Logic:** Exponential backoff for rate limits and server errors
+- **Fallback Strategy:** Title search stub (to be implemented in future steps)
+
 ## Next Steps
 
 - ✅ Canonical schema & header mapping
-- Golden manifests & Great Expectations
-- Parser/cleaner with quantity explode
-- Keepa client with rate limiting
+- ✅ Golden manifests & Great Expectations
+- ✅ Parser/cleaner with quantity explode
+- ✅ Keepa client with caching & retries
+- ✅ ID resolver with evidence ledger
 - Ensemble pricing & survival models
 - Monte Carlo optimizer with configurable gates

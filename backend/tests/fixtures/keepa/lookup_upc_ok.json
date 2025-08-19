@@ -1,0 +1,112 @@
+{
+  "timestamp": 1640995200000,
+  "tokensLeft": 999999,
+  "refillIn": 86400,
+  "processingTimeInMs": 42,
+  "status": "OK",
+  "products": [
+    {
+      "asin": "B08N5WRWNW",
+      "domainId": 1,
+      "title": "Echo Dot (4th Gen) | Smart speaker with Alexa | Charcoal",
+      "brand": "Amazon",
+      "categoryTree": [
+        {
+          "catId": 172282,
+          "name": "Electronics"
+        },
+        {
+          "catId": 667846011,
+          "name": "Amazon Devices & Accessories"
+        }
+      ],
+      "manufacturer": "Amazon",
+      "model": "B08N5WRWNW",
+      "color": "Charcoal",
+      "size": null,
+      "binding": "Electronics",
+      "packageHeight": 381,
+      "packageLength": 762,
+      "packageWidth": 508,
+      "packageWeight": 1814,
+      "isAdultProduct": false,
+      "isEligibleForPrime": true,
+      "isEligibleForSuperSaverShipping": true,
+      "availabilityAmazon": 1,
+      "imagesCSV": "51QnzAm5PdL.jpg,51xLukL5EhL.jpg,61C9hcqsz2L.jpg",
+      "features": [
+        "Meet Echo Dot - Our most popular smart speaker with a fabric design. It is our most compact smart speaker that fits perfectly into small spaces.",
+        "Improved speaker quality - Better speaker quality than Echo Dot Gen 2 for richer and louder sound. Pair with another Echo Dot for stereo sound.",
+        "Voice control your music - Stream songs from Amazon Music, Apple Music, Spotify, Pandora, and others."
+      ],
+      "description": "Echo Dot (4th Gen) | Smart speaker with Alexa | Charcoal",
+      "hazardousMaterialType": {
+        "Unknown": 0
+      },
+      "productGroup": "Home",
+      "partNumber": "B08N5WRWNW",
+      "studio": "Amazon",
+      "label": "Amazon",
+      "department": null,
+      "publisher": "Amazon",
+      "upc": "841667147741",
+      "ean": "0841667147741",
+      "packageQuantity": 1,
+      "itemHeight": null,
+      "itemLength": null,
+      "itemWidth": null,
+      "itemWeight": null,
+      "releaseDate": "2020-10-22T00:00:00Z",
+      "salesRankReference": 1640995200000,
+      "salesRanks": [
+        {
+          "categoryId": 172282,
+          "rank": 15,
+          "isCurrent": true
+        }
+      ],
+      "lastUpdate": 1640995180,
+      "lastPriceChange": 1640908800,
+      "rootCategory": 172282,
+      "parentAsin": null,
+      "variationCSV": null,
+      "variations": null,
+      "frequentlyBoughtTogether": [
+        "B08ZMBGPKS",
+        "B08KGG3N7S"
+      ],
+      "reviewsCount": 234567,
+      "rating": 46,
+      "buyBoxSellerIdHistory": [1, 1, 1],
+      "isRedirectASIN": false,
+      "isSNS": false,
+      "offersSuccessful": true,
+      "csv": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        4999,
+        null,
+        null,
+        null,
+        null
+      ],
+      "offers": [
+        {
+          "sellerId": "ATVPDKIKX0DER",
+          "condition": 1,
+          "conditionComment": null,
+          "primeExclusive": 0,
+          "primeEligible": 1,
+          "isFBA": true,
+          "buyBoxWinner": true,
+          "price": 4999,
+          "shipping": 0,
+          "shippingCountry": "US"
+        }
+      ]
+    }
+  ]
+}

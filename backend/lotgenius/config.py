@@ -19,7 +19,10 @@ class Settings(BaseSettings):
     ENABLE_SCRAPERS: bool = Field(False, description="Use low-trust scrapers (opt-in)")
 
     # External services (Keepa-only for now)
-    KEEPA_KEY: str | None = None
+    KEEPA_API_KEY: str | None = None
+    KEEPA_CACHE_TTL_DAYS: int = Field(
+        7, description="Cache TTL for Keepa responses in days"
+    )
 
     # Header mapping validation
     HEADER_COVERAGE_MIN: float = Field(

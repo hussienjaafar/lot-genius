@@ -150,6 +150,16 @@ parse-json:
 	@echo "Running parser with explode to JSON..."
 	$(PYTHON) -m backend.cli.parse_clean backend/tests/fixtures/manifest_multiqty.csv --explode --out json --output /tmp/lotgenius_exploded.json
 
+## Resolve IDs to ASINs (test fixture)
+resolve-test:
+	@echo "Running ID resolution on test fixture..."
+	$(PYTHON) -m backend.cli.resolve_ids backend/tests/fixtures/manifest_multiqty.csv --output-csv /tmp/resolved_test.csv --output-ledger /tmp/resolved_test_ledger.jsonl
+
+## Resolve IDs for custom file
+resolve:
+	@if [ -z "$(FILE)" ]; then echo 'Usage: make resolve FILE=path/to.csv'; exit 2; fi
+	$(PYTHON) -m backend.cli.resolve_ids $(FILE)
+
 ## Show available commands
 help:
 	@echo "Available commands:"
@@ -168,6 +178,8 @@ help:
 	@echo "  make validate FILE=path/to.csv - Validate single file (strict)"
 	@echo "  make parse-one   - Parse and explode manifest to CSV"
 	@echo "  make parse-json  - Parse and explode manifest to JSON"
+	@echo "  make resolve-test - Resolve IDs to ASINs (test fixture)"
+	@echo "  make resolve FILE=path/to.csv - Resolve IDs for custom file"
 	@echo "  make run-dev     - Start development server"
 	@echo "  make run-prod    - Start production server"
 	@echo "  make docker-build - Build Docker image"

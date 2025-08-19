@@ -84,7 +84,13 @@ def _to_json_serializable(obj):
     "--include-samples/--no-include-samples",
     default=False,
     show_default=True,
-    help="Include raw simulation arrays in JSON output",
+    help="Include raw Monte Carlo arrays (revenue, cash_60d) in out_json",
+)
+@click.option(
+    "--evidence-out",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None,
+    help="Write one-line NDJSON evidence for optimizer",
 )
 def main(
     input_csv,
@@ -110,6 +116,7 @@ def main(
     lot_fixed_cost,
     seed,
     include_samples,
+    evidence_out,
 ):
     """
     Optimize lot bid using Monte Carlo simulation and bisection search.
@@ -141,13 +148,63 @@ def main(
     out_json = Path(out_json)
     out_json.parent.mkdir(parents=True, exist_ok=True)
 
+    # Write evidence NDJSON if requested
+    ev_path = None
+    if evidence_out:
+        ev_path = Path(evidence_out)
+        ev_path.parent.mkdir(parents=True, exist_ok=True)
+        ev = {
+            "source": "optimize:bid",
+            "ok": bool(result.get("meets_constraints", False)),
+            "meta": {
+                "roi_target": float(roi_target),
+                "risk_threshold": float(risk_threshold),
+                "min_cash_60d": (None if min_cash_60d is None else float(min_cash_60d)),
+                "min_cash_60d_p5": (
+                    None if min_cash_60d_p5 is None else float(min_cash_60d_p5)
+                ),
+                "sims": int(sims),
+                "salvage_frac": float(salvage_frac),
+                "marketplace_fee_pct": float(marketplace_fee_pct),
+                "payment_fee_pct": float(payment_fee_pct),
+                "per_order_fee_fixed": float(per_order_fee_fixed),
+                "shipping_per_order": float(shipping_per_order),
+                "packaging_per_order": float(packaging_per_order),
+                "refurb_per_order": float(refurb_per_order),
+                "return_rate": float(return_rate),
+                "salvage_fee_pct": float(salvage_fee_pct),
+                "lot_fixed_cost": float(lot_fixed_cost),
+                "lo": float(lo),
+                "hi": float(hi),
+                "tol": float(tol),
+                "max_iter": int(max_iter),
+            },
+            "result": {
+                "bid": float(result.get("bid", 0.0)),
+                "roi_p5": float(result.get("roi_p5", 0.0)),
+                "roi_p50": float(result.get("roi_p50", 0.0)),
+                "roi_p95": float(result.get("roi_p95", 0.0)),
+                "prob_roi_ge_target": float(result.get("prob_roi_ge_target", 0.0)),
+                "expected_cash_60d": float(result.get("expected_cash_60d", 0.0)),
+                "cash_60d_p5": (
+                    float(result.get("cash_60d_p5", 0.0))
+                    if "cash_60d_p5" in result
+                    else None
+                ),
+                "iterations": int(result.get("iterations", 0)),
+                "meets_constraints": bool(result.get("meets_constraints", False)),
+                "timestamp": result.get("timestamp"),
+            },
+        }
+        with open(ev_path, "w", encoding="utf-8") as f:
+            f.write(json.dumps(ev, ensure_ascii=False) + "\n")
+
     # Prepare result for JSON output
-    json_result = _to_json_serializable(result.copy())
+    out_dict = dict(result)
     if not include_samples:
-        # Remove raw simulation arrays but keep summaries
-        json_result.pop("revenue", None)
-        json_result.pop("cash_60d", None)
-        json_result.pop("roi", None)
+        for k in ("revenue", "cash_60d"):
+            out_dict.pop(k, None)
+    json_result = _to_json_serializable(out_dict)
 
     out_json.write_text(json.dumps(json_result, indent=2), encoding="utf-8")
     click.echo(
@@ -163,6 +220,7 @@ def main(
                 "expected_cash_60d": float(result["expected_cash_60d"]),
                 "cash_60d_p5": float(result["cash_60d_p5"]),
                 "meets_constraints": bool(result["meets_constraints"]),
+                "evidence_out": str(ev_path) if ev_path else None,
             },
             indent=2,
         )

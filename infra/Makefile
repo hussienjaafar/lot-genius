@@ -188,6 +188,18 @@ estimate-sell:
 optimize-bid:
 	$(PYTHON) -m backend.cli.optimize_bid data/out/estimated_sell.csv --out-json data/out/optimize_bid.json --lo 0 --hi 5000 --roi-target 1.25 --risk-threshold 0.80 --sims 2000
 
+## Sweep bids between [lo,hi] and record P(ROI≥target), ROI quantiles, cash stats (Step 9.1)
+sweep-bid:
+	$(PYTHON) -m backend.cli.sweep_bid data/out/estimated_sell.csv --out-csv data/out/sweep_bid.csv --lo 0 --hi 5000 --step 100 --roi-target 1.25 --risk-threshold 0.80 --sims 1000
+
+## Optimize bid with evidence NDJSON for audit trail (Step 9.1)
+optimize-bid-evidence:
+	$(PYTHON) -m backend.cli.optimize_bid data/out/estimated_sell.csv --out-json data/out/optimize_bid.json --lo 0 --hi 5000 --roi-target 1.25 --risk-threshold 0.80 --sims 2000 --evidence-out data/evidence/optimize_evidence.jsonl
+
+## Join recommended bid to produce single-row lot summary or broadcast to items (Step 9.1)
+join-bid:
+	$(PYTHON) -m backend.cli.join_bid --items-csv data/out/estimated_sell.csv --opt-json data/out/optimize_bid.json --out-csv data/out/lot_summary.csv --mode one-row
+
 ## Show available commands
 help:
 	@echo "Available commands:"

@@ -388,10 +388,35 @@ make optimize-bid
 - `--min-cash-60d` (optional cash recovery constraint)
 - `--min-cash-60d-p5` (optional P5 cash recovery constraint for VaR)
 - `--lot-fixed-cost` (default 0.0): fixed cost added to bid in ROI denominator
-- `--include-samples/--no-include-samples` (default --no-include-samples): include raw simulation arrays in JSON output
+- `--include-samples/--no-include-samples` (default off): include raw Monte Carlo arrays in JSON output (can make JSON large for big --sims)
 
 Random seed & tolerance controllable.
 
 `cash_60d_p5` available for risk-aware cash constraints via `--min-cash-60d-p5`.
 
 **NOTE:** ROI target is configurable (not hard-coded). Defaults reflect your "≥1.25× within ~60 days" minimum.
+
+### Niceties (Step 9.1)
+
+- **Bid sweep**: generate `sweep_bid.csv` with columns:
+  `bid, prob_roi_ge_target, roi_p5, roi_p50, roi_p95, expected_cash_60d, cash_60d_p5, meets_constraints`.
+
+  ```bash
+  python -m backend.cli.sweep_bid data/out/estimated_sell.csv \
+    --out-csv data/out/sweep_bid.csv --lo 0 --hi 5000 --step 100 \
+    --roi-target 1.25 --risk-threshold 0.80 --sims 1000
+  ```
+
+- **Optimizer evidence**: one-line NDJSON for audit:
+
+  ```bash
+  python -m backend.cli.optimize_bid ... --evidence-out data/evidence/optimize_evidence.jsonl
+  ```
+
+- **Join recommended bid**: produce a single-row lot summary or broadcast to items:
+  ```bash
+  python -m backend.cli.join_bid --items-csv data/out/estimated_sell.csv \
+    --opt-json data/out/optimize_bid.json --out-csv data/out/lot_summary.csv --mode one-row
+  ```
+
+**Notes**: Arrays are compact by default (`--include-samples` to embed them). Sweep runs the same feasibility check as the optimizer across a grid of bids.

@@ -174,3 +174,27 @@ def test_highest_floor_wins():
 
     finally:
         priors_path.unlink()
+
+
+def test_category_floor_uses_category_hint():
+    """Test that floors trigger with category_hint column."""
+    from pathlib import Path
+
+    priors_path = Path("backend/tests/fixtures/category_priors.json")
+    df = _df(
+        [
+            {
+                "sku_local": "E3",
+                "condition": "New",
+                "category_hint": "electronics",
+                "keepa_price_new_med": 30.0,
+                "keepa_offers_count": 4,
+            }
+        ]
+    )
+
+    out, _ = estimate_prices(
+        df, category_priors_path=priors_path, salvage_floor_frac=0.0
+    )
+    assert float(out.loc[0, "est_price_p5_floored"]) >= 25.0
+    assert "category" in (out.loc[0, "est_price_floor_rule"] or "")

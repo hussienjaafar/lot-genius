@@ -192,3 +192,56 @@ def test_cli_no_price_evidence_when_not_requested(tmp_path):
 
     # Check that price evidence path is not in payload
     assert "price_evidence_path" not in payload
+
+
+def test_cli_price_evidence_fields(tmp_path):
+    """Test that price evidence includes all expected fields."""
+    df = pd.DataFrame(
+        [
+            {
+                "sku_local": "A1",
+                "condition": "New",
+                "category_hint": "electronics",
+                "keepa_price_new_med": 40.0,
+                "keepa_offers_count": 5,
+            }
+        ]
+    )
+
+    in_csv = tmp_path / "enriched.csv"
+    out_csv = tmp_path / "estimated.csv"
+    ledger_out = tmp_path / "price_ledger.jsonl"
+    evidence_out = tmp_path / "price_evidence.jsonl"
+    df.to_csv(in_csv, index=False)
+
+    from pathlib import Path
+
+    runner = CliRunner()
+    res = runner.invoke(
+        cli,
+        [
+            str(in_csv),
+            "--category-priors",
+            "backend/tests/fixtures/category_priors.json",
+            "--salvage-floor-frac",
+            "0.0",
+            "--out-csv",
+            str(out_csv),
+            "--ledger-out",
+            str(ledger_out),
+            "--price-evidence-out",
+            str(evidence_out),
+        ],
+    )
+    assert res.exit_code == 0, res.output
+    line = Path(evidence_out).read_text(encoding="utf-8").splitlines()[0]
+    rec = json.loads(line)
+    for k in [
+        "est_price_mu",
+        "est_price_sigma",
+        "est_price_p5",
+        "est_price_p5_floored",
+        "est_price_category",
+        "sources",
+    ]:
+        assert k in rec

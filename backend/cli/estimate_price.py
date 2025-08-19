@@ -177,13 +177,28 @@ def main(
                 evidence_record = {
                     "row_index": int(idx),
                     "sku_local": row.get("sku_local"),
+                    "asin": (
+                        row.get("asin") if isinstance(row.get("asin"), str) else None
+                    ),
                     "est_price_mu": row.get("est_price_mu"),
+                    "est_price_sigma": row.get("est_price_sigma"),
                     "est_price_p5": row.get("est_price_p5"),
                     "est_price_p5_floored": row.get("est_price_p5_floored"),
                     "est_price_floor_rule": row.get("est_price_floor_rule"),
                     "est_price_category": row.get("est_price_category"),
+                    "sources": [],
                 }
-                # Remove None values for compactness
+                # Parse sources JSON if present
+                try:
+                    if pd.notna(row.get("est_price_sources")):
+                        evidence_record["sources"] = json.loads(
+                            row.get("est_price_sources")
+                        )
+                except Exception:
+                    pass
+
+                # Keep fields even if None EXCEPT sources (already present as []), to aid UI
+                # If you still want to compact, only drop keys whose value is strictly None:
                 evidence_record = {
                     k: v for k, v in evidence_record.items() if v is not None
                 }

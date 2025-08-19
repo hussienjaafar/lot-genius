@@ -47,9 +47,15 @@ def load_category_priors(path: Optional[Path]) -> Dict[str, Any]:
 def _category_key_from_row(row: pd.Series) -> Optional[str]:
     """
     Extract category key from row. Can be adapted to your schema.
-    For now, try common column names like 'category', 'cat', 'category_name'.
+    For now, try common column names like 'category_hint', 'category', 'cat', 'category_name'.
     """
-    for col in ["category", "cat", "category_name", "product_category"]:
+    for col in [
+        "category_hint",
+        "category",
+        "cat",
+        "category_name",
+        "product_category",
+    ]:
         val = row.get(col)
         if isinstance(val, str) and val.strip():
             return val.strip()

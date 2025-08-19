@@ -147,33 +147,28 @@ def _explode_quantity(df: pd.DataFrame) -> pd.DataFrame:
     """
     Produce one row per physical unit, preserving a back-pointer to parent.
     Adds:
-      - unit_index: 1..quantity within each original row
-      - parent_row_index: original DataFrame index for traceability
-    Quantity is set to 1 in the exploded DataFrame.
+      - parent_row_index: original row index before explosion
+      - unit_index: 1..quantity within each parent
+    Sets quantity=1 on all exploded rows.
     """
     if "quantity" not in df.columns:
         return df.copy()
-    # Ensure integer
+
+    # Coerce & clamp quantity
     q = pd.to_numeric(df["quantity"], errors="coerce").fillna(1).astype(int)
     q[q <= 0] = 1
 
-    # Repeat each row by its quantity
-    repeated = df.loc[df.index.repeat(q)].copy()
-    # Within each parent group, enumerate unit index
-    repeated["parent_row_index"] = repeated.groupby(level=0).cumcount()  # temp
-    # The cumcount above counts across entire frame; fix to 0..(n-1) per original row
-    # Better: groupby original index then cumcount
-    repeated["parent_row_index"] = repeated.groupby(level=0).cumcount()
-    # Convert to 1-based unit index scoped to original rows
-    # We need a stable grouping key of the original index; create a helper column
-    repeated["__orig_idx__"] = repeated.index
-    repeated["unit_index"] = repeated.groupby("__orig_idx__").cumcount() + 1
-    repeated.drop(columns=["__orig_idx__"], inplace=True)
+    # Capture original index as parent pointer, then repeat by quantity
+    base = df.reset_index(drop=False).rename(columns={"index": "parent_row_index"})
+    repeated = base.loc[base.index.repeat(q)].copy()
+
+    # Unit index is 1..n within each original parent row
+    repeated["unit_index"] = repeated.groupby("parent_row_index").cumcount() + 1
 
     # Normalize quantity to 1 for each unit
     repeated["quantity"] = 1
 
-    # Optional: create a simple unit key if sku_local & lot_id exist
+    # Optional unit key for convenience
     if "lot_id" in repeated.columns and "sku_local" in repeated.columns:
 
         def _mk_key(row):

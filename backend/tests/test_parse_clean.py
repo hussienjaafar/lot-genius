@@ -45,3 +45,15 @@ def test_condition_normalization_and_explode(tmp_path: Path):
 
     # back-pointer preserved (lot_id exists)
     assert "lot_id" in exploded.columns
+
+
+def test_explode_parent_and_unit_index_alignment():
+    from lotgenius.parse import parse_and_clean
+
+    p = Path("backend/tests/fixtures/manifest_multiqty.csv")
+    res = parse_and_clean(p, fuzzy_threshold=85, explode=True)
+    exploded = res.df_exploded
+    assert "parent_row_index" in exploded.columns
+    # For the first original row (quantity=3 in fixture), the max unit_index should be 3
+    max_unit_first = exploded.loc[exploded["parent_row_index"] == 0, "unit_index"].max()
+    assert int(max_unit_first) == 3

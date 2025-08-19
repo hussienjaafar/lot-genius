@@ -63,7 +63,7 @@ def main(
         elif out_fmt.lower() == "parquet":
             df.to_parquet(output_path, index=False)
         else:
-            df.to_json(output_path, orient="records")
+            df.to_json(output_path, orient="records", force_ascii=False)
     # Summary
     if summary:
         payload = {

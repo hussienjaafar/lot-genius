@@ -5,8 +5,16 @@ from typing import Generator
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from lotgenius.api.schemas import ReportRequest, ReportResponse
-from lotgenius.api.service import generate_report, report_stream
+
+try:
+    from lotgenius.api.schemas import ReportRequest, ReportResponse
+except ModuleNotFoundError:
+    from backend.lotgenius.api.schemas import ReportRequest, ReportResponse
+
+try:
+    from lotgenius.api.service import generate_report, report_stream
+except ModuleNotFoundError:
+    from backend.lotgenius.api.service import generate_report, report_stream
 
 # CORS configuration
 CORS_ORIGINS = [

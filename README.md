@@ -18,6 +18,18 @@ _Defaults: 1.25 over 60 days._
 pip install -U pip pre-commit
 pre-commit install
 # create .env from template and set KEEPA_KEY
+
+## Evidence Gating (env)
+The pipeline enforces a two-source rule when an item lacks a high-trust ID (UPC/EAN/ASIN).
+Environment variables:
+
+| Var | Default | Meaning |
+| --- | --- | --- |
+| `EVIDENCE_MIN_COMPS` | `3` | Minimum sold comps within lookback to include in core ROI |
+| `EVIDENCE_LOOKBACK_DAYS` | `180` | Window for counting comps |
+| `EVIDENCE_REQUIRE_SECONDARY` | `true` | Require a secondary signal (e.g. Keepa rank trend or offers present) |
+
+Items failing the gate are marked **REVIEW** and excluded from core ROI; they appear as upside in the report payload under `evidence_summary`.
 cp infra/.env.example .env
 ```
 

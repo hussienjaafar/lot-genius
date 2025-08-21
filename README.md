@@ -620,3 +620,185 @@ curl -X POST http://localhost:8787/v1/report \
 - Report content matches CLI output for identical inputs
 - No eBay usage; maintains Keepa-only constraints
 - HTML/PDF conversion requires pandoc (same as CLI)
+
+### Optimizer API
+
+**Blocking:**
+
+```bash
+curl -H "X-API-Key: $LOTGENIUS_API_KEY" \
+  -X POST http://localhost:8787/v1/optimize \
+  -H 'Content-Type: application/json' \
+  -d '{
+        "items_csv":"data/samples/minimal.csv",
+        "opt_json_inline":{"lo":0,"hi":1000,"roi_target":1.25,"risk_threshold":0.80}
+      }' | jq .
+```
+
+**Streaming (SSE):**
+
+```bash
+curl -N -H "X-API-Key: $LOTGENIUS_API_KEY" \
+  -X POST http://localhost:8787/v1/optimize/stream \
+  -H 'Content-Type: application/json' \
+  -d '{"items_csv":"data/samples/minimal.csv","opt_json_inline":{"lo":0,"hi":1000,"roi_target":1.25,"risk_threshold":0.80}}'
+```
+
+### Pipeline API (end-to-end)
+
+**Blocking:**
+
+```bash
+curl -H "X-API-Key: $LOTGENIUS_API_KEY" \
+  -X POST http://localhost:8787/v1/pipeline \
+  -H 'Content-Type: application/json' \
+  -d '{
+        "items_csv":"data/samples/minimal.csv",
+        "opt_json_inline":{"lo":0,"hi":1000,"roi_target":1.25,"risk_threshold":0.80}
+      }' | jq .
+```
+
+**Streaming:**
+
+```bash
+curl -N -H "X-API-Key: $LOTGENIUS_API_KEY" \
+  -X POST http://localhost:8787/v1/pipeline/stream \
+  -H 'Content-Type: application/json' \
+  -d '{"items_csv":"data/samples/minimal.csv","opt_json_inline":{"lo":0,"hi":1000,"roi_target":1.25,"risk_threshold":0.80}}'
+```
+
+### Upload Endpoints
+
+For web clients that need to upload files directly instead of using server paths:
+
+**Note:** Either `opt_json` (file) or `opt_json_inline` (JSON string) is required.
+
+**Blocking (pipeline):**
+
+```bash
+curl -H "X-API-Key: $LOTGENIUS_API_KEY" \
+  -F items_csv=@data/samples/minimal.csv \
+  -F opt_json=@data/samples/opt.json \
+  http://localhost:8787/v1/pipeline/upload | jq .
+```
+
+**Streaming (pipeline):**
+
+```bash
+curl -N -H "X-API-Key: $LOTGENIUS_API_KEY" \
+  -F items_csv=@data/samples/minimal.csv \
+  -F opt_json=@data/samples/opt.json \
+  http://localhost:8787/v1/pipeline/upload/stream
+```
+
+**Blocking (optimizer):**
+
+```bash
+curl -H "X-API-Key: $LOTGENIUS_API_KEY" \
+  -F items_csv=@data/samples/minimal.csv \
+  -F opt_json=@data/samples/opt.json \
+  http://localhost:8787/v1/optimize/upload | jq .
+```
+
+**Streaming (optimizer):**
+
+```bash
+curl -N -H "X-API-Key: $LOTGENIUS_API_KEY" \
+  -F items_csv=@data/samples/minimal.csv \
+  -F opt_json=@data/samples/opt.json \
+  http://localhost:8787/v1/optimize/upload/stream
+```
+
+**With inline optimizer config:**
+
+Blocking optimizer:
+
+```bash
+curl -H "X-API-Key: $LOTGENIUS_API_KEY" \
+  -F items_csv=@data/samples/minimal.csv \
+  -F opt_json_inline='{"bid":100,"risk_threshold":0.8}' \
+  http://localhost:8787/v1/optimize/upload | jq .
+```
+
+Streaming pipeline with inline:
+
+```bash
+curl -N -H "X-API-Key: $LOTGENIUS_API_KEY" \
+  -F items_csv=@data/samples/minimal.csv \
+  -F opt_json_inline='{"bid":100}' \
+  http://localhost:8787/v1/pipeline/upload/stream
+```
+
+```bash
+curl -H "X-API-Key: $LOTGENIUS_API_KEY" \
+  -F items_csv=@data/samples/minimal.csv \
+  -F opt_json_inline='{"lo":0,"hi":1000,"roi_target":1.25,"risk_threshold":0.80,"sims":100}' \
+  http://localhost:8787/v1/pipeline/upload | jq .
+```
+
+```bash
+curl -H "X-API-Key: $LOTGENIUS_API_KEY" \
+  -F items_csv=@data/samples/minimal.csv \
+  -F opt_json_inline='{"lo":0,"hi":1000,"roi_target":1.25,"risk_threshold":0.80,"sims":100}' \
+  http://localhost:8787/v1/optimize/upload | jq .
+```
+
+**With output files:**
+
+```bash
+curl -H "X-API-Key: $LOTGENIUS_API_KEY" \
+  -F items_csv=@data/samples/minimal.csv \
+  -F opt_json=@data/samples/opt.json \
+  -F out_markdown=/tmp/report.md \
+  http://localhost:8787/v1/pipeline/upload | jq .
+```
+
+**Features:**
+
+- Accepts `multipart/form-data` uploads via `-F` flag
+- Same security validation as path-based endpoints
+- Temporary files auto-deleted after processing
+- Optional output file paths (validated for security)
+- Same response structure as existing endpoints
+
+## Path Safety
+
+Lot Genius validates all user-supplied file paths:
+
+- **Allowed roots:** the repo/workdir and the system temp directory
+  (Linux/macOS: `/tmp`/`/private/tmp`; Windows: `%TEMP%`).
+- **Early rejection across platforms:** Windows drive/UNC patterns
+  (e.g., `C:\Windows\…`, `\\server\share\…`) are blocked even on non-Windows hosts.
+- **Sensitive prefixes blocked:** `/etc`, `/root`, device/proc/sys dirs, `C:\Windows`, `C:\Program Files`, etc.
+- **Fail-closed:** absolute paths outside allowed roots return **HTTP 400**.
+
+Use temp files for programmatic runs in tests/CI:
+
+```bash
+TMPDIR=$(mktemp -d)
+python - << 'PY'
+from pathlib import Path; import json, pandas as pd, os
+p = Path(os.environ["TMPDIR"])
+items = p/"items.csv"; opt = p/"opt.json"
+pd.DataFrame([{"sku_local":"A"}]).to_csv(items, index=False)
+opt.write_text(json.dumps({"bid":100}), encoding="utf-8")
+print(items, opt)
+PY
+```
+
+### Suppressing Noisy Runtime Warnings
+
+By default, the API process installs a tiny warning filter to hide a benign
+`ddtrace … vmstat` `RuntimeWarning` that can appear in some containers.
+
+Control via env (on by default):
+
+```bash
+# enable (default)
+export LOTGENIUS_SUPPRESS_NOISY_WARNINGS=1
+
+# disable (show everything)
+export LOTGENIUS_SUPPRESS_NOISY_WARNINGS=0
+```
+
+This does not affect pytest (which already filters these in pytest.ini).

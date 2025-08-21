@@ -30,8 +30,7 @@ def load_category_priors(path: Optional[Path]) -> Dict[str, Any]:
       "category_name": {
         "p20_floor_abs": float|null,
         "p20_floor_frac_of_mu": float
-      },
-      ...
+      }
     }
     Returns empty dict if path is None or file doesn't exist.
     """
@@ -176,6 +175,7 @@ def build_sources_from_row(
     priors: Dict[str, float],
     cv_fallback: float,
     use_used_for_nonnew: bool,
+    evidence_ledger: Optional[List[EvidenceRecord]] = None,
 ) -> List[SourceStat]:
     """
     Build zero-or-more SourceStat entries from a row with Keepa stats.
@@ -247,7 +247,69 @@ def build_sources_from_row(
             )
         )
 
-    # TODO: add eBay/other sources later when available
+    # Add external comps sources if available and enabled
+    try:
+        from .pricing.external_comps import (
+            external_comps_estimate,
+            get_external_comps_prior_weight,
+            is_external_comps_available,
+        )
+
+        if is_external_comps_available():
+            # Generate query terms from the row data
+            query_terms = []
+
+            # Try to extract search terms from common columns
+            for col in ["title", "description", "name", "product_name", "item_name"]:
+                if col in row.index and pd.notna(row[col]):
+                    # Take first few words as search terms
+                    terms = str(row[col]).strip().split()[:3]
+                    query_terms.extend(terms)
+                    break
+
+            # Add brand/model if available
+            for col in ["brand", "model", "manufacturer"]:
+                if col in row.index and pd.notna(row[col]):
+                    query_terms.append(str(row[col]).strip())
+
+            if query_terms:
+                # Get external comps estimate and write evidence
+                external_price, evidence_summary = external_comps_estimate(
+                    query_terms, evidence_ledger
+                )
+
+                if external_price and external_price > 0:
+                    # Add external comps as a source
+                    external_prior = get_external_comps_prior_weight()
+                    sources.append(
+                        SourceStat(
+                            "external_comps",
+                            external_price,
+                            cv_fallback
+                            * 1.5,  # Higher uncertainty for external sources
+                            max(1, len(query_terms)),  # Strength based on query quality
+                            recency * 0.8,  # Slightly lower recency weight
+                            external_prior,
+                        )
+                    )
+                elif evidence_ledger is not None:
+                    # Still write evidence even if no price estimate
+                    evidence_ledger.append(
+                        EvidenceRecord(
+                            step="external_comps",
+                            status="no_estimate",
+                            **evidence_summary,
+                        )
+                    )
+    except ImportError:
+        # External comps module not available
+        pass
+    except Exception as e:
+        # Log error but don't fail pricing
+        import logging
+
+        logging.getLogger(__name__).warning(f"External comps error: {e}")
+
     return sources
 
 
@@ -320,6 +382,7 @@ def estimate_prices(
             priors=priors,
             cv_fallback=cv_fallback,
             use_used_for_nonnew=use_used_for_nonnew,
+            evidence_ledger=ledger,
         )
         mu, sigma, meta = triangulate_price(srcs)
 

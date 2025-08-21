@@ -9,7 +9,7 @@
       "asin": "B00TESTASIN",
       "productType": 0,
       "title": "Test Product With Stats",
-      "imagesCSV": "...",
+      "imagesCSV": "https://example.com/image1.jpg,https://example.com/image2.jpg",
       "rootCategory": 281407,
       "productCodes": [
         {"type": "GTIN", "code": "123456789012"}

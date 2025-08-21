@@ -184,7 +184,7 @@ def suggest_candidates(src_header: str, top_k: int = 5) -> list[dict]:
 
 def find_conflicts(mapping: dict[str, str]) -> dict[str, list[str]]:
     """
-    Returns {canonical: [source headers...]} for any canonical field
+    Returns {canonical: [source headers …]} for any canonical field
     that is targeted by >1 source header.
     """
     inv: dict[str, list[str]] = {}

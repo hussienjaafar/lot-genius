@@ -1,10 +1,23 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
+
+from .config import settings
+from .evidence import filter_items_by_evidence_gate, mark_items_as_upside
+
+
+def _var_cvar(values: np.ndarray, alpha: float):
+    """Compute Value at Risk (VaR) and Conditional Value at Risk (CVaR)."""
+    # values are ROI (e.g., 1.0 = breakeven); we measure the shortfall
+    q = np.quantile(values, alpha)
+    tail = values[values <= q]
+    cvar = tail.mean() if tail.size else q
+    return float(q), float(cvar)
+
 
 DEFAULTS = dict(
     horizon_days=60,  # horizon governed upstream by sell_p60 (60d)
@@ -41,6 +54,65 @@ def _valid_items(df: pd.DataFrame) -> pd.DataFrame:
     return keep.reset_index(drop=True)
 
 
+def apply_evidence_gate_to_items(
+    df: pd.DataFrame, evidence_ledger: Optional[List[Dict[str, Any]]] = None
+) -> Dict[str, Any]:
+    """
+    Apply Two-Source Rule evidence gating before ROI calculations.
+
+    Items failing evidence gate are excluded from core ROI and marked as upside.
+
+    Args:
+        df: DataFrame of items to process
+        evidence_ledger: Evidence records for items
+
+    Returns:
+        Dict with core_items, upside_items, and summary stats
+    """
+    if df.empty:
+        return {
+            "core_items": pd.DataFrame(),
+            "upside_items": pd.DataFrame(),
+            "evidence_summary": {
+                "total_items": 0,
+                "core_count": 0,
+                "upside_count": 0,
+                "gate_pass_rate": 0.0,
+            },
+        }
+
+    # Apply evidence gate filter
+    core_items, failed_items = filter_items_by_evidence_gate(df, evidence_ledger)
+
+    # Mark failed items as upside opportunities
+    upside_items = (
+        mark_items_as_upside(failed_items) if not failed_items.empty else pd.DataFrame()
+    )
+
+    # Create summary statistics
+    total_items = len(df)
+    core_count = len(core_items)
+    upside_count = len(upside_items)
+    gate_pass_rate = core_count / total_items if total_items > 0 else 0.0
+
+    evidence_summary = {
+        "total_items": total_items,
+        "core_count": core_count,
+        "upside_count": upside_count,
+        "gate_pass_rate": gate_pass_rate,
+        "core_percentage": gate_pass_rate * 100,
+        "upside_percentage": (
+            (upside_count / total_items * 100) if total_items > 0 else 0.0
+        ),
+    }
+
+    return {
+        "core_items": core_items,
+        "upside_items": upside_items,
+        "evidence_summary": evidence_summary,
+    }
+
+
 def simulate_lot_outcomes(
     df_in: pd.DataFrame,
     bid: float,
@@ -57,24 +129,39 @@ def simulate_lot_outcomes(
     salvage_fee_pct: float = DEFAULTS["salvage_fee_pct"],
     lot_fixed_cost: float = 0.0,
     seed: Optional[int] = 1337,
+    evidence_ledger: Optional[List[Dict[str, Any]]] = None,
+    apply_evidence_gate: bool = False,
 ) -> Dict[str, Any]:
     """
-    Vectorized MC:
+    Vectorized MC simulation with optional Two-Source Rule evidence gating.
+
+    When apply_evidence_gate=True:
+      - Items failing evidence gate are excluded from core ROI
+      - Failed items are tracked as upside opportunities
+      - Core ROI calculations use only evidence-gated items
+
+    Simulation:
       - price ~ Normal(mu, sigma), clipped at 0
       - sold ~ Bernoulli(sell_p60)
       - realized revenue = sold * (price*(1 - mkt - pay) - per_order_fee_fixed - shipping - packaging - refurb) * (1 - return)
       - salvage revenue (unsold) = (1 - sold) * (price * salvage_frac * (1 - salvage_fee_pct))
       - cash_60d = sold_net_revenue (exclude salvage)
       - total_cost = bid  (other per-order costs already netted into revenue)
-    Returns arrays and summary stats.
+    Returns arrays, summary stats, and evidence gate results.
     """
-    df = _valid_items(df_in)
+    # Apply evidence gating if requested
+    evidence_gate_result = None
+    if apply_evidence_gate:
+        evidence_gate_result = apply_evidence_gate_to_items(df_in, evidence_ledger)
+        df = _valid_items(evidence_gate_result["core_items"])
+    else:
+        df = _valid_items(df_in)
     n = df.shape[0]
     if n == 0:
         rng = np.random.default_rng(seed)
         roi = np.zeros(sims)
         zeros_arr = np.zeros(sims)
-        return dict(
+        result = dict(
             sims=int(sims),
             items=int(n),
             bid=float(bid),
@@ -89,6 +176,9 @@ def simulate_lot_outcomes(
             cash_60d_p95=float(np.quantile(zeros_arr, 0.95)),
             prob_roi_ge_target=None,  # computed by feasible()
         )
+        if evidence_gate_result:
+            result["evidence_gate"] = evidence_gate_result
+        return result
 
     rng = np.random.default_rng(seed)
     mu = df["est_price_mu"].to_numpy(float)
@@ -126,7 +216,11 @@ def simulate_lot_outcomes(
         revenue_sum, total_cost, out=np.zeros_like(revenue_sum), where=(total_cost > 0)
     )
 
-    return dict(
+    # Add VaR/CVaR computation
+    alpha = settings.VAR_ALPHA
+    var_a, cvar_a = _var_cvar(roi, alpha)
+
+    result = dict(
         sims=int(sims),
         items=int(n),
         bid=float(bid),
@@ -139,7 +233,13 @@ def simulate_lot_outcomes(
         cash_60d_p5=float(np.quantile(cash_sum, 0.05)),
         cash_60d_p50=float(np.quantile(cash_sum, 0.50)),
         cash_60d_p95=float(np.quantile(cash_sum, 0.95)),
+        var_alpha=alpha,
+        roi_var=var_a,
+        roi_cvar=cvar_a,
     )
+    if evidence_gate_result:
+        result["evidence_gate"] = evidence_gate_result
+    return result
 
 
 def feasible(

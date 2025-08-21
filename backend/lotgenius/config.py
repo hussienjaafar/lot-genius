@@ -18,6 +18,33 @@ class Settings(BaseSettings):
     # Feature flags
     ENABLE_SCRAPERS: bool = Field(False, description="Use low-trust scrapers (opt-in)")
 
+    # External comps scrapers (disabled by default, require ToS acknowledgment)
+    ENABLE_EBAY_SCRAPER: bool = Field(
+        False, description="Enable eBay sold comps scraper"
+    )
+    ENABLE_FB_SCRAPER: bool = Field(
+        False, description="Enable Facebook Marketplace scraper"
+    )
+    SCRAPER_TOS_ACK: bool = Field(
+        False, description="Acknowledge scraper Terms of Service"
+    )
+
+    # External comps configuration
+    EXTERNAL_COMPS_PRIOR_WEIGHT: float = Field(
+        0.25, description="Weight for external comps in triangulation"
+    )
+    EXTERNAL_COMPS_LOOKBACK_DAYS: int = Field(
+        180, description="Days to look back for sold comps"
+    )
+    EXTERNAL_COMPS_MAX_RESULTS: int = Field(
+        40, description="Max comps to retrieve per source"
+    )
+
+    # Tail-risk alpha for VaR/CVaR (0.20 => 80% VaR)
+    VAR_ALPHA: float = Field(
+        0.20, description="Tail-risk alpha for VaR/CVaR computation"
+    )
+
     # External services (Keepa-only for now)
     KEEPA_API_KEY: str | None = None
     KEEPA_CACHE_TTL_DAYS: int = Field(
@@ -31,7 +58,15 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
-        extra = "ignore"
+        case_sensitive = False
 
 
 settings = Settings()
+
+# Export settings for easy import
+ENABLE_EBAY_SCRAPER = settings.ENABLE_EBAY_SCRAPER
+ENABLE_FB_SCRAPER = settings.ENABLE_FB_SCRAPER
+SCRAPER_TOS_ACK = settings.SCRAPER_TOS_ACK
+EXTERNAL_COMPS_PRIOR_WEIGHT = settings.EXTERNAL_COMPS_PRIOR_WEIGHT
+EXTERNAL_COMPS_LOOKBACK_DAYS = settings.EXTERNAL_COMPS_LOOKBACK_DAYS
+EXTERNAL_COMPS_MAX_RESULTS = settings.EXTERNAL_COMPS_MAX_RESULTS

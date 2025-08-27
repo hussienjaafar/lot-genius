@@ -33,6 +33,8 @@ class EvidenceResult:
     # raw traces for ledger
     sources: Dict[str, Any] = None
     timestamp: float = 0.0
+    # additional computed metadata to surface in ledgers (e.g., product_confidence)
+    meta: Dict[str, Any] | None = None
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -142,6 +144,7 @@ def compute_evidence(
         review_reason=review_reason,
         sources=sources or {},
         timestamp=now,
+        meta={},
     )
 
 
@@ -296,7 +299,42 @@ def _count_external_comps(
     for evidence in evidence_ledger:
         if "external_comps_summary" in evidence:
             ext_summary = evidence["external_comps_summary"]
-            total_external += ext_summary.get("total_comps", 0)
+            if not isinstance(ext_summary, dict):
+                continue
+
+            # Prefer num_comps when present and valid
+            if "num_comps" in ext_summary:
+                try:
+                    count = int(ext_summary["num_comps"])
+                    if count >= 0:
+                        total_external += count
+                        continue
+                except (ValueError, TypeError):
+                    pass
+
+            # Fallback to summing by_source values if present
+            if "by_source" in ext_summary and isinstance(
+                ext_summary["by_source"], dict
+            ):
+                try:
+                    by_source_sum = sum(
+                        int(v)
+                        for v in ext_summary["by_source"].values()
+                        if isinstance(v, (int, float)) and v >= 0
+                    )
+                    total_external += by_source_sum
+                    continue
+                except (ValueError, TypeError):
+                    pass
+
+            # Legacy fallback for total_comps
+            if "total_comps" in ext_summary:
+                try:
+                    count = int(ext_summary["total_comps"])
+                    if count >= 0:
+                        total_external += count
+                except (ValueError, TypeError):
+                    pass
 
     return total_external
 
@@ -308,19 +346,33 @@ def _detect_secondary_signals(
     signals = []
 
     # Check for manual price overrides
-    if any(key in item for key in ["manual_price", "override_price", "expert_price"]):
+    def _has_valid_value(item_dict, key):
+        """Check if item has a valid (non-None, non-NaN) value for key."""
+        import pandas as pd
+
+        value = item_dict.get(key)
+        return value is not None and not pd.isna(value) and str(value).strip() != ""
+
+    if any(
+        _has_valid_value(item, key)
+        for key in ["manual_price", "override_price", "expert_price"]
+    ):
         signals.append("manual_override")
 
     # Check for multiple Keepa categories (new vs used)
-    has_new = any(item.get(key, 0) > 0 for key in ["keepa_new_price", "keepa_new_mu"])
+    has_new = any(
+        (item.get(key) or 0) > 0 for key in ["keepa_new_price", "keepa_new_mu"]
+    )
     has_used = any(
-        item.get(key, 0) > 0 for key in ["keepa_used_price", "keepa_used_mu"]
+        (item.get(key) or 0) > 0 for key in ["keepa_used_price", "keepa_used_mu"]
     )
     if has_new and has_used:
         signals.append("multi_condition")
 
     # Check for category-based pricing hints
-    if item.get("category_hint") or item.get("category_name"):
+    if _has_valid_value(item, "category_hint") or _has_valid_value(
+        item, "category_name"
+    ):
         signals.append("category_pricing")
 
     # Check for historical pricing patterns in evidence ledger
@@ -367,16 +419,44 @@ def filter_items_by_evidence_gate(
         from .gating import passes_evidence_gate as central_gate
 
         # Extract gate parameters from row/evidence
-        has_high_trust_id = bool(row.get("asin") or row.get("upc") or row.get("ean"))
-        sold_comps_180d = int(
-            row.get("keepa_new_count", 0) + row.get("keepa_used_count", 0)
+        # Handle pandas NaN values properly - NaN is truthy but not a valid ID
+        def _is_valid_id(value):
+            """Check if value is a valid ID (not None, NaN, or empty string)."""
+            import pandas as pd
+
+            return value is not None and not pd.isna(value) and str(value).strip() != ""
+
+        has_high_trust_id = (
+            _is_valid_id(row.get("asin"))
+            or _is_valid_id(row.get("upc"))
+            or _is_valid_id(row.get("ean"))
         )
 
+        # Count primary comps from Keepa
+        keepa_comps = int(
+            (row.get("keepa_new_count") or 0) + (row.get("keepa_used_count") or 0)
+        )
+
+        # Add external comps from evidence ledger
+        external_comps = _count_external_comps(dict(row), evidence_ledger, 180)
+        sold_comps_180d = keepa_comps + external_comps
+
         # Check for secondary signals (rank trend, offer depth, etc.)
-        has_secondary_signal = bool(
-            row.get("keepa_offers_count", 0) > 0  # offer depth
-            or row.get("keepa_salesrank_med") is not None  # rank data
-            or row.get("manual_price") is not None  # manual override
+        basic_secondary_signals = [
+            (row.get("keepa_offers_count") or 0) > 0,  # offer depth
+            _is_valid_id(row.get("keepa_salesrank_med")),  # rank data
+            _is_valid_id(row.get("manual_price")),  # manual override
+        ]
+
+        # Add external comps as secondary signal
+        advanced_secondary_signals = _detect_secondary_signals(
+            dict(row), evidence_ledger
+        )
+        if external_comps > 0:
+            advanced_secondary_signals.append("external_comps")
+
+        has_secondary_signal = (
+            any(basic_secondary_signals) or len(advanced_secondary_signals) > 0
         )
 
         gate_result = central_gate(
@@ -437,17 +517,31 @@ def write_evidence(
     This is the real evidence writer that external_comps should use
     instead of maintaining its own local stub.
     """
+    from .ids import extract_ids
     from .resolve import EvidenceRecord
+
+    ids = extract_ids(item)
+    # Flatten data into meta for easier downstream access while also
+    # preserving the original payload under a 'data' key for compatibility.
+    meta_payload: Dict[str, Any] = {"item_title": item.get("title")}
+    try:
+        if isinstance(data, dict):
+            meta_payload.update(data)
+            meta_payload.setdefault("data", data)
+        else:
+            meta_payload["data"] = data
+    except Exception:
+        meta_payload["data"] = data
 
     record = EvidenceRecord(
         row_index=item.get("row_index"),
         sku_local=item.get("sku_local"),
-        upc_ean_asin=item.get("upc") or item.get("ean") or item.get("asin"),
+        upc_ean_asin=ids["upc_ean_asin"] or ids["asin"],
         source=source,
         ok=ok,
-        match_asin=item.get("asin"),
+        match_asin=ids["asin"],
         cached=False,
-        meta={"item_title": item.get("title"), "data": data},
+        meta=meta_payload,
         timestamp=datetime.now().isoformat(),
     )
     _global_evidence_ledger.append(record.__dict__)

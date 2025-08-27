@@ -1,0 +1,13 @@
+{
+  "lo": 0,
+  "hi": 10000,
+  "roi_target": 1.5,
+  "risk_threshold": 0.75,
+  "min_cash_60d": 500,
+  "sims": 500,
+  "marketplace_fee_pct": 0.15,
+  "payment_fee_pct": 0.03,
+  "return_rate": 0.1,
+  "mins_per_unit": 8,
+  "capacity_mins_per_day": 480
+}

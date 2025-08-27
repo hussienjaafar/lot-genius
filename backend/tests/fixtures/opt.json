@@ -1,0 +1,6 @@
+{
+  "bid": 150.0,
+  "roi_target": 1.25,
+  "risk_threshold": 0.80,
+  "sims": 100
+}

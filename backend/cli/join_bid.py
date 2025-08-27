@@ -31,7 +31,7 @@ def main(items_csv, opt_json, out_csv, mode):
     """
     Join recommended bid: produce a single-row lot summary or broadcast to items.
     """
-    items = pd.read_csv(items_csv)
+    items = pd.read_csv(items_csv, encoding="utf-8")
     opt = json.loads(Path(opt_json).read_text(encoding="utf-8"))
 
     # Flatten relevant fields
@@ -48,10 +48,14 @@ def main(items_csv, opt_json, out_csv, mode):
         "meets_constraints": bool(opt.get("meets_constraints", False)),
     }
     # Add roi_target and risk_threshold if present in optimizer JSON
-    summary.update({
-        "roi_target": float(opt.get("roi_target")) if "roi_target" in opt else None,
-        "risk_threshold": float(opt.get("risk_threshold")) if "risk_threshold" in opt else None,
-    })
+    summary.update(
+        {
+            "roi_target": float(opt.get("roi_target")) if "roi_target" in opt else None,
+            "risk_threshold": (
+                float(opt.get("risk_threshold")) if "risk_threshold" in opt else None
+            ),
+        }
+    )
     out_path = Path(out_csv)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -59,7 +63,7 @@ def main(items_csv, opt_json, out_csv, mode):
         # attach the summary columns to every item row
         for k, v in summary.items():
             items[k] = v
-        items.to_csv(out_path, index=False)
+        items.to_csv(out_path, index=False, encoding="utf-8")
     else:
         # single-row lot summary with a few aggregations
         row = {**summary}
@@ -79,7 +83,7 @@ def main(items_csv, opt_json, out_csv, mode):
             if ("est_price_p50" in items.columns or "est_price_median" in items.columns)
             else None
         )
-        pd.DataFrame([row]).to_csv(out_path, index=False)
+        pd.DataFrame([row]).to_csv(out_path, index=False, encoding="utf-8")
 
     click.echo(
         json.dumps(

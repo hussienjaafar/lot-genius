@@ -1,0 +1,45 @@
+FFF                                                                      [100%]
+================================== FAILURES ===================================
+_________________________ test_complete_pipeline_e2e __________________________
+async def functions are not natively supported.
+You need to install a suitable plugin for your async framework, for example:
+  - anyio
+  - pytest-asyncio
+  - pytest-tornasync
+  - pytest-trio
+  - pytest-twisted
+__________________________ test_frontend_ui_elements __________________________
+async def functions are not natively supported.
+You need to install a suitable plugin for your async framework, for example:
+  - anyio
+  - pytest-asyncio
+  - pytest-tornasync
+  - pytest-trio
+  - pytest-twisted
+_________________________ test_file_upload_validation _________________________
+async def functions are not natively supported.
+You need to install a suitable plugin for your async framework, for example:
+  - anyio
+  - pytest-asyncio
+  - pytest-tornasync
+  - pytest-trio
+  - pytest-twisted
+============================== warnings summary ===============================
+backend\tests\test_e2e_pipeline.py:11
+  C:\Users\Husse\lot-genius\backend\tests\test_e2e_pipeline.py:11: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+backend\tests\test_e2e_pipeline.py:134
+  C:\Users\Husse\lot-genius\backend\tests\test_e2e_pipeline.py:134: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+backend\tests\test_e2e_pipeline.py:180
+  C:\Users\Husse\lot-genius\backend\tests\test_e2e_pipeline.py:180: PytestUnknownMarkWarning: Unknown pytest.mark.asyncio - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.asyncio
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED backend\tests\test_e2e_pipeline.py::test_complete_pipeline_e2e - Faile...
+FAILED backend\tests\test_e2e_pipeline.py::test_frontend_ui_elements - Failed...
+FAILED backend\tests\test_e2e_pipeline.py::test_file_upload_validation - Fail...
+3 failed, 3 warnings in 0.06s

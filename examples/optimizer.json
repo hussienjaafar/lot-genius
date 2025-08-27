@@ -1,0 +1,106 @@
+{
+  "_description": "Lot Genius optimizer configuration with comprehensive parameters",
+  "_documentation": "See docs/backend/roi.md for detailed parameter explanations",
+
+  "roi_target": 1.25,
+  "_roi_target_comment": "Minimum ROI threshold (1.25 = 25% return). Range: 1.0-10.0",
+
+  "risk_threshold": 0.8,
+  "_risk_threshold_comment": "Confidence level for ROI constraint (80% probability). Range: 0.5-1.0",
+
+  "lo": 0,
+  "_lo_comment": "Minimum bid amount to consider",
+
+  "hi": 5000,
+  "_hi_comment": "Maximum bid amount to consider",
+
+  "sims": 2000,
+  "_sims_comment": "Monte Carlo simulation count. More sims = higher accuracy, longer runtime",
+
+  "marketplace_fee_pct": 0.13,
+  "_marketplace_fee_comment": "Marketplace commission (13% = eBay/Amazon typical)",
+
+  "payment_fee_pct": 0.029,
+  "_payment_fee_comment": "Payment processing fee (2.9% typical for PayPal/Stripe)",
+
+  "per_order_fee_fixed": 0.3,
+  "_per_order_fee_comment": "Fixed fee per transaction",
+
+  "shipping_per_order": 8.5,
+  "_shipping_comment": "Average shipping cost per order",
+
+  "packaging_per_order": 1.0,
+  "_packaging_comment": "Packaging materials cost per order",
+
+  "refurb_per_order": 5.0,
+  "_refurb_comment": "Refurbishment/prep cost per order",
+
+  "return_rate": 0.08,
+  "_return_rate_comment": "Expected return rate (8% typical for used items)",
+
+  "salvage_frac": 0.5,
+  "_salvage_comment": "Salvage value as fraction of estimated price for unsold items",
+
+  "lot_fixed_cost": 0.0,
+  "_lot_fixed_cost_comment": "Fixed costs beyond bid (inspection, transport, etc.)",
+
+  "min_cash_60d": 0,
+  "_min_cash_60d_comment": "Optional: Minimum expected cash recovery within horizon",
+
+  "min_cash_60d_p5": 0,
+  "_min_cash_60d_p5_comment": "Optional: Minimum P5 cash recovery (VaR constraint)",
+
+  "manifest_risk_discount": 1.0,
+  "_manifest_risk_comment": "Discount factor for manifest uncertainty (0.95 = 5% discount)",
+
+  "ops_storage_cost_daily": 0.0,
+  "_ops_storage_comment": "Daily storage cost per item while unsold",
+
+  "payout_lag_days": 14,
+  "_payout_lag_comment": "Days from sale to cash receipt (affects cash flow timing)",
+
+  "calibration_log_path": "logs/predictions.jsonl",
+  "_calibration_comment": "Optional: Enable prediction logging for calibration analysis",
+
+  "_examples": {
+    "conservative_profile": {
+      "roi_target": 1.2,
+      "risk_threshold": 0.9,
+      "min_cash_60d_p5": 500,
+      "manifest_risk_discount": 0.9,
+      "_note": "High certainty, lower returns, cash protection"
+    },
+
+    "standard_profile": {
+      "roi_target": 1.25,
+      "risk_threshold": 0.8,
+      "sims": 2000,
+      "_note": "Balanced risk/return for established relationships"
+    },
+
+    "aggressive_profile": {
+      "roi_target": 1.5,
+      "risk_threshold": 0.7,
+      "salvage_frac": 0.3,
+      "sims": 3000,
+      "_note": "Higher returns, accept more risk, conservative salvage"
+    }
+  },
+
+  "_cost_structure_examples": {
+    "electronics_specific": {
+      "return_rate": 0.12,
+      "refurb_per_order": 8.0,
+      "shipping_per_order": 12.0,
+      "_note": "Higher costs for electronics category"
+    },
+
+    "books_specific": {
+      "return_rate": 0.04,
+      "refurb_per_order": 1.0,
+      "shipping_per_order": 4.5,
+      "salvage_frac": 0.2,
+      "_note": "Lower costs but poor salvage value for books"
+    }
+  }
+}

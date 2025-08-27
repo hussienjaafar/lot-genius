@@ -1,0 +1,50 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+    - navigation [ref=e2]:
+        - generic [ref=e5]:
+            - heading "Lot Genius" [level=1] [ref=e6]
+            - generic [ref=e7]:
+                - link "Home" [ref=e8] [cursor=pointer]:
+                    - /url: /
+                - link "Calibration" [ref=e9] [cursor=pointer]:
+                    - /url: /calibration
+    - main [ref=e11]:
+        - heading "Lot Genius" [level=1] [ref=e12]
+        - generic [ref=e13]:
+            - generic [ref=e14]:
+                - generic [ref=e15]:
+                    - checkbox "Direct Backend Mode" [ref=e16]
+                    - generic [ref=e17]: Direct Backend Mode
+                - generic [ref=e18]: Using Next.js API proxy
+            - generic [ref=e19]:
+                - button "Optimize Lot" [active] [ref=e20] [cursor=pointer]
+                - button "Pipeline (SSE)" [ref=e21] [cursor=pointer]
+        - generic [ref=e23]:
+            - generic [ref=e25]:
+                - heading "Lot Optimization" [level=2] [ref=e26]
+                - paragraph [ref=e27]: Upload your items CSV and optimization parameters to get bidding recommendations
+            - generic [ref=e29]:
+                - generic [ref=e30]:
+                    - generic [ref=e31]:
+                        - generic [ref=e32]:
+                            - generic [ref=e33]: Items CSV (Required)
+                            - generic [ref=e35] [cursor=pointer]:
+                                - img [ref=e36] [cursor=pointer]
+                                - paragraph [ref=e38] [cursor=pointer]: Click to browse or drag and drop a file here
+                                - paragraph [ref=e39] [cursor=pointer]: "Accepts: .csv"
+                        - paragraph [ref=e40]: "Max upload: 20 MB (UI limit)"
+                    - generic [ref=e41]:
+                        - generic [ref=e42]: Optimizer JSON (Optional)
+                        - 'textbox "{\"bid\": 100, \"roi_target\": 1.25, \"risk_threshold\": 0.80}" [ref=e43]'
+                - generic [ref=e44]:
+                    - generic [ref=e45]:
+                        - generic [ref=e46]: Calibration Log Path (Optional)
+                        - textbox "/path/to/calibration.jsonl" [ref=e47]
+                    - generic [ref=e48]:
+                        - generic [ref=e49]: Markdown Output (Optional)
+                        - textbox "/path/to/report.md" [ref=e50]
+                - button "Optimize Lot" [disabled] [ref=e51]
+    - alert [ref=e52]
+```

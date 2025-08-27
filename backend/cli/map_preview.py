@@ -58,7 +58,7 @@ def main(
     for src, dest in save_alias:
         learn_alias(src, dest)
 
-    df = pd.read_csv(csv_path, nrows=1)  # header row only
+    df = pd.read_csv(csv_path, nrows=1, encoding="utf-8")  # header row only
     mapping, unmapped = map_headers(list(df.columns), threshold=threshold)
 
     suggestions = {}

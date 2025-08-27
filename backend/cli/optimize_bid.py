@@ -4,6 +4,7 @@ from pathlib import Path
 import click
 import numpy as np
 import pandas as pd
+from lotgenius.config import settings
 from lotgenius.roi import DEFAULTS, optimize_bid
 
 
@@ -92,6 +93,32 @@ def _to_json_serializable(obj):
     default=None,
     help="Write one-line NDJSON evidence for optimizer",
 )
+# Throughput capacity options
+@click.option(
+    "--mins-per-unit",
+    default=None,
+    type=float,
+    help="Minutes per unit for throughput calculation (uses settings default if omitted)",
+)
+@click.option(
+    "--capacity-mins-per-day",
+    default=None,
+    type=float,
+    help="Capacity minutes per day (uses settings default if omitted)",
+)
+# Brand gating and hazmat policy options
+@click.option(
+    "--gated-brands",
+    default=None,
+    type=str,
+    help="Comma-separated list of brand names to gate (overrides settings for this run)",
+)
+@click.option(
+    "--hazmat-policy",
+    default=None,
+    type=click.Choice(["exclude", "review", "allow"], case_sensitive=False),
+    help="Hazmat policy: exclude, review, or allow (overrides settings for this run)",
+)
 def main(
     input_csv,
     out_json,
@@ -117,34 +144,67 @@ def main(
     seed,
     include_samples,
     evidence_out,
+    mins_per_unit,
+    capacity_mins_per_day,
+    gated_brands,
+    hazmat_policy,
 ):
     """
     Optimize lot bid using Monte Carlo simulation and bisection search.
     """
-    df = pd.read_csv(input_csv)
-    result = optimize_bid(
-        df,
-        lo=float(lo),
-        hi=float(hi),
-        tol=float(tol),
-        max_iter=int(max_iter),
-        roi_target=float(roi_target),
-        risk_threshold=float(risk_threshold),
-        min_cash_60d=(None if min_cash_60d is None else float(min_cash_60d)),
-        min_cash_60d_p5=(None if min_cash_60d_p5 is None else float(min_cash_60d_p5)),
-        sims=int(sims),
-        salvage_frac=float(salvage_frac),
-        marketplace_fee_pct=float(marketplace_fee_pct),
-        payment_fee_pct=float(payment_fee_pct),
-        per_order_fee_fixed=float(per_order_fee_fixed),
-        shipping_per_order=float(shipping_per_order),
-        packaging_per_order=float(packaging_per_order),
-        refurb_per_order=float(refurb_per_order),
-        return_rate=float(return_rate),
-        salvage_fee_pct=float(salvage_fee_pct),
-        lot_fixed_cost=float(lot_fixed_cost),
-        seed=int(seed),
+    df = pd.read_csv(input_csv, encoding="utf-8")
+
+    # Default min_cash_60d to settings.CASHFLOOR when not provided
+    effective_min_cash = (
+        settings.CASHFLOOR if min_cash_60d is None else float(min_cash_60d)
     )
+
+    # Runtime settings override for brand gating and hazmat policy
+    original_gated_brands = settings.GATED_BRANDS_CSV
+    original_hazmat_policy = settings.HAZMAT_POLICY
+
+    try:
+        if gated_brands is not None:
+            settings.GATED_BRANDS_CSV = gated_brands
+        if hazmat_policy is not None:
+            settings.HAZMAT_POLICY = hazmat_policy.lower()
+
+        result = optimize_bid(
+            df,
+            lo=float(lo),
+            hi=float(hi),
+            tol=float(tol),
+            max_iter=int(max_iter),
+            roi_target=float(roi_target),
+            risk_threshold=float(risk_threshold),
+            min_cash_60d=effective_min_cash,
+            min_cash_60d_p5=(
+                None if min_cash_60d_p5 is None else float(min_cash_60d_p5)
+            ),
+            throughput_mins_per_unit=(
+                None if mins_per_unit is None else float(mins_per_unit)
+            ),
+            capacity_mins_per_day=(
+                None if capacity_mins_per_day is None else float(capacity_mins_per_day)
+            ),
+            sims=int(sims),
+            salvage_frac=float(salvage_frac),
+            marketplace_fee_pct=float(marketplace_fee_pct),
+            payment_fee_pct=float(payment_fee_pct),
+            per_order_fee_fixed=float(per_order_fee_fixed),
+            shipping_per_order=float(shipping_per_order),
+            packaging_per_order=float(packaging_per_order),
+            refurb_per_order=float(refurb_per_order),
+            return_rate=float(return_rate),
+            salvage_fee_pct=float(salvage_fee_pct),
+            lot_fixed_cost=float(lot_fixed_cost),
+            seed=int(seed),
+        )
+    finally:
+        # Restore original settings
+        settings.GATED_BRANDS_CSV = original_gated_brands
+        settings.HAZMAT_POLICY = original_hazmat_policy
+
     out_json = Path(out_json)
     out_json.parent.mkdir(parents=True, exist_ok=True)
 
@@ -159,7 +219,7 @@ def main(
             "meta": {
                 "roi_target": float(roi_target),
                 "risk_threshold": float(risk_threshold),
-                "min_cash_60d": (None if min_cash_60d is None else float(min_cash_60d)),
+                "min_cash_60d": float(effective_min_cash),
                 "min_cash_60d_p5": (
                     None if min_cash_60d_p5 is None else float(min_cash_60d_p5)
                 ),

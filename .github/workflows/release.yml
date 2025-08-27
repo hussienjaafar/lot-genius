@@ -1,0 +1,110 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  build-artifacts:
+    name: Build Release Artifacts
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Full history for release notes
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install build
+
+      - name: Build backend packages
+        run: |
+          cd backend
+          python -m build
+          ls -la dist/
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+
+      - name: Package frontend build
+        run: |
+          cd frontend
+          zip -r ../frontend-build.zip .next/ public/ package.json package-lock.json
+          ls -la ../frontend-build.zip
+
+      - name: Package docs bundle
+        run: |
+          zip -r docs-bundle.zip docs/ scripts/check_ascii.py scripts/check_markdown_links.py
+          ls -la docs-bundle.zip
+
+      - name: Generate demo bundle
+        run: |
+          python scripts/make_demo_zip.py
+          ls -la lotgenius_demo.zip
+
+      - name: Generate release notes
+        run: |
+          python scripts/release_notes.py > RELEASE_NOTES.md
+
+      - name: Validate ASCII compliance of release notes
+        run: |
+          python scripts/check_ascii.py RELEASE_NOTES.md
+
+      - name: Upload backend artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-packages
+          path: backend/dist/*
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend-build.zip
+
+      - name: Upload docs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-bundle
+          path: docs-bundle.zip
+
+      - name: Upload demo artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-bundle
+          path: lotgenius_demo.zip
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            backend/dist/*.whl
+            backend/dist/*.tar.gz
+            frontend-build.zip
+            docs-bundle.zip
+            lotgenius_demo.zip
+          body_path: RELEASE_NOTES.md
+          draft: false
+          prerelease: false
+          generate_release_notes: false # Use our custom notes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

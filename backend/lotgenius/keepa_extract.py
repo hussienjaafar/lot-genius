@@ -88,22 +88,78 @@ def extract_stats_compact(keepa_payload: Dict[str, Any]) -> Dict[str, Any]:
         "scale_rule": None,
     }
     try:
-        products = (keepa_payload or {}).get("products") or []
+        # Navigate to first product in response
+        products = (keepa_payload or {}).get("data", {}).get("products") or []
         if not products:
             return out
         p0 = products[0] or {}
         stats = p0.get("stats") or {}
 
-        v_new = _num(stats.get("priceNewMedian"))
-        v_used = _num(stats.get("priceUsedMedian"))
-        v_rank = _num(stats.get("salesRankMedian"))
+        # Extract pricing data from multiple sources for robustness
+        v_new = None
+        v_used = None
 
-        # Offers can be on root or in stats; accept int or numeric string, ignore arrays
-        offers = p0.get("offers")
-        offers = _to_int(offers) if offers is not None else _to_int(stats.get("offers"))
+        # Priority 1: Current Amazon price (most reliable for liquidation)
+        current_data = stats.get("current")
+        if current_data and len(current_data) > 1 and current_data[1] != -1:
+            v_new = _num(current_data[1] / 100)  # Index 1 = current Amazon price
 
-        # Normalize possible cents
-        v_new_n, v_used_n, scaled, rule = _maybe_cents_to_unit(v_new, v_used)
+        # Priority 2: Buy box price (if positive - negative values are status codes)
+        if not v_new:
+            buybox_price = stats.get("buyBoxPrice")
+            if buybox_price and buybox_price > 0:  # Must be positive price
+                v_new = _num(buybox_price / 100)
+
+        # Priority 3: 30-day Amazon average for stability
+        if not v_new:
+            avg30_data = stats.get("avg30")
+            if avg30_data and len(avg30_data) > 0 and avg30_data[0] != -1:
+                v_new = _num(avg30_data[0] / 100)  # Index 0 = Amazon average
+
+        # Priority 4: Competitive price threshold as fallback
+        if not v_new:
+            competitive_price = p0.get("competitivePriceThreshold")
+            if competitive_price and competitive_price > 0:  # Must be positive
+                v_new = _num(competitive_price / 100)
+
+        # Extract used pricing from CSV price tracks (Track 2 = Used prices)
+        csv_data = p0.get("csv", [])
+        if len(csv_data) >= 3:  # Ensure we have used price track
+            used_track = csv_data[2]  # Track 2 = Used prices
+            if isinstance(used_track, list) and len(used_track) >= 2:
+                # Get recent used price (last non-null value)
+                for i in range(
+                    len(used_track) - 1, 0, -2
+                ):  # Walk backwards through prices
+                    if used_track[i] != -1:
+                        v_used = _num(used_track[i] / 100)
+                        break
+
+        # Sales rank extraction (multiple sources)
+        v_rank = None
+
+        # Method 1: Current sales rank from current data (index 3 typically)
+        if current_data and len(current_data) > 3 and current_data[3] != -1:
+            v_rank = _to_int(current_data[3])
+
+        # Method 2: Sales rank from salesRanks field
+        if not v_rank and "salesRanks" in p0 and p0["salesRanks"]:
+            sales_ranks = p0["salesRanks"]
+            if isinstance(sales_ranks, list) and sales_ranks:
+                for rank in sales_ranks:
+                    if rank and rank != -1:
+                        v_rank = _to_int(rank)
+                        break
+
+        # Offers count - use totalOfferCount directly
+        offers = _to_int(stats.get("totalOfferCount"))
+
+        # For liquidation, we don't need the complex cents normalization
+        # Just ensure reasonable price ranges
+        v_new_n = v_new
+        v_used_n = v_used
+        scaled = False
+        rule = "direct_extraction"
 
         out.update(
             {

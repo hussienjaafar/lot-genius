@@ -12,12 +12,17 @@ function requireEnv(name: string): string {
 }
 
 export async function POST(req: Request) {
+  console.log("🚀 Proxy route POST called");
   try {
     const BACKEND_URL = requireEnv("BACKEND_URL");
     const LOTGENIUS_API_KEY = requireEnv("LOTGENIUS_API_KEY");
+    console.log(`🔄 Proxy: Forwarding to ${BACKEND_URL}`);
 
     const ct = (req.headers.get("content-type") || "").toLowerCase();
+    console.log(`📋 Content-Type: ${ct}`);
+
     if (!ct.startsWith("multipart/form-data")) {
+      console.log(`❌ Invalid content-type: ${ct}`);
       return NextResponse.json(
         {
           error:
@@ -31,11 +36,17 @@ export async function POST(req: Request) {
       "/v1/pipeline/upload/stream",
       BACKEND_URL,
     ).toString();
-    return await forwardMultipartSSE(req, target, {
+    console.log(`🎯 Target URL: ${target}`);
+
+    console.log("📤 Calling forwardMultipartSSE...");
+    const result = await forwardMultipartSSE(req, target, {
       "X-API-Key": LOTGENIUS_API_KEY,
       Accept: "text/event-stream",
     });
+    console.log("✅ forwardMultipartSSE completed");
+    return result;
   } catch (err: any) {
+    console.error("❌ Proxy error:", err);
     return NextResponse.json(
       { error: err?.message ?? "Proxy error" },
       { status: 500 },

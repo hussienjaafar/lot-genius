@@ -1,0 +1,18 @@
+{
+  "lo": 0,
+  "hi": 2000,
+  "roi_target": 1.25,
+  "risk_threshold": 0.8,
+  "sims": 1000,
+  "salvage_frac": 0.5,
+  "marketplace_fee_pct": 0.13,
+  "payment_fee_pct": 0.029,
+  "per_order_fee_fixed": 0.3,
+  "shipping_per_order": 8.5,
+  "packaging_per_order": 2.0,
+  "refurb_per_order": 0.0,
+  "return_rate": 0.08,
+  "lot_fixed_cost": 25.0,
+  "min_cash_60d": null,
+  "min_cash_60d_p5": null
+}

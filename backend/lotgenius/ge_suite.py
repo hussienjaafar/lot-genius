@@ -24,7 +24,7 @@ def _pandas_checks(df: pd.DataFrame) -> list[dict]:
             {
                 "expectation": "quantity>0",
                 "success": bool(
-                    (q.dropna() > 0).all() if not q.dropna().empty else True
+                    (q.dropna() > 0).all() if len(q.dropna()) > 0 else True
                 ),
             }
         )
@@ -36,7 +36,7 @@ def _pandas_checks(df: pd.DataFrame) -> list[dict]:
         out.append(
             {
                 "expectation": "msrp>=0",
-                "success": bool((m >= 0).all() if not m.empty else True),
+                "success": bool((m >= 0).all() if len(m) > 0 else True),
             }
         )
     return out
@@ -66,7 +66,7 @@ def run_ge_checks(df: pd.DataFrame) -> dict:
             )
         if "msrp" in gdf.columns:
             non_null = gdf["msrp"].dropna()
-            if not non_null.empty:
+            if len(non_null) > 0:
                 r = gdf.expect_column_values_to_be_between("msrp", min_value=0.0)
                 results.append({"expectation": "msrp>=0", "success": bool(r.success)})
     else:

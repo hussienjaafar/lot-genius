@@ -1,0 +1,6 @@
+{
+  "roi_target": 1.5,
+  "risk_threshold": 0.8,
+  "payout_lag": 14,
+  "cashfloor": 0
+}

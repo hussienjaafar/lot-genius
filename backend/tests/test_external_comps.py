@@ -10,6 +10,7 @@ FIXT = Path(__file__).parent / "data" / "ebay_sold_sample.html"
 def test_default_scrapers_off(monkeypatch):
     monkeypatch.setenv("ENABLE_EBAY_SCRAPER", "false")
     monkeypatch.setenv("ENABLE_FB_SCRAPER", "false")
+    monkeypatch.setenv("ENABLE_GOOGLE_SEARCH_ENRICHMENT", "false")
     monkeypatch.setenv("SCRAPER_TOS_ACK", "false")
     from backend.lotgenius import config as cfg
 
@@ -26,6 +27,7 @@ def test_ebay_parser_fixture(monkeypatch):
     monkeypatch.setenv("ENABLE_EBAY_SCRAPER", "true")
     monkeypatch.setenv("SCRAPER_TOS_ACK", "true")
     monkeypatch.setenv("ENABLE_FB_SCRAPER", "false")
+    monkeypatch.setenv("ENABLE_GOOGLE_SEARCH_ENRICHMENT", "false")
     from backend.lotgenius import config as cfg
 
     reload(cfg)
@@ -34,6 +36,7 @@ def test_ebay_parser_fixture(monkeypatch):
     monkeypatch.setattr(cfg.settings, "ENABLE_EBAY_SCRAPER", True)
     monkeypatch.setattr(cfg.settings, "SCRAPER_TOS_ACK", True)
     monkeypatch.setattr(cfg.settings, "ENABLE_FB_SCRAPER", False)
+    monkeypatch.setattr(cfg.settings, "ENABLE_GOOGLE_SEARCH_ENRICHMENT", False)
 
     class DummyResp:
         status_code = 200
@@ -51,6 +54,9 @@ def test_ebay_parser_fixture(monkeypatch):
     monkeypatch.setattr(external_comps.settings, "ENABLE_EBAY_SCRAPER", True)
     monkeypatch.setattr(external_comps.settings, "SCRAPER_TOS_ACK", True)
     monkeypatch.setattr(external_comps.settings, "ENABLE_FB_SCRAPER", False)
+    monkeypatch.setattr(
+        external_comps.settings, "ENABLE_GOOGLE_SEARCH_ENRICHMENT", False
+    )
 
     est = external_comps_estimator(
         {"title": "Logitech M185 Wireless Mouse", "brand": "Logitech"}

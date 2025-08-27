@@ -3,7 +3,7 @@ from pathlib import Path
 
 import click
 import pandas as pd
-from lotgenius.roi import feasible
+from lotgenius.roi import DEFAULTS, feasible
 
 
 @click.command()
@@ -15,8 +15,15 @@ from lotgenius.roi import feasible
 @click.option("--hi", required=True, type=float, help="High end of bid sweep")
 @click.option("--step", required=True, type=float, help="Step size in dollars")
 # Constraints
-@click.option("--roi-target", default=1.25, show_default=True, type=float)
-@click.option("--risk-threshold", default=0.80, show_default=True, type=float)
+@click.option(
+    "--roi-target", default=DEFAULTS["roi_target"], show_default=True, type=float
+)
+@click.option(
+    "--risk-threshold",
+    default=DEFAULTS["risk_threshold"],
+    show_default=True,
+    type=float,
+)
 @click.option("--min-cash-60d", default=None, type=float)
 @click.option("--min-cash-60d-p5", default=None, type=float)
 # Costs
@@ -56,9 +63,9 @@ def main(
     seed,
 ):
     """
-    Sweep bids between [lo,hi] and record P(ROI≥target), ROI quantiles, cash stats.
+    Sweep bids between [lo,hi] and record P(ROI>=target), ROI quantiles, cash stats.
     """
-    df = pd.read_csv(input_csv)
+    df = pd.read_csv(input_csv, encoding="utf-8")
     rows = []
     b = float(lo)
     while b <= hi + 1e-9:
@@ -100,7 +107,7 @@ def main(
 
     out_csv = Path(out_csv)
     out_csv.parent.mkdir(parents=True, exist_ok=True)
-    pd.DataFrame(rows).to_csv(out_csv, index=False)
+    pd.DataFrame(rows).to_csv(out_csv, index=False, encoding="utf-8")
     click.echo(
         json.dumps(
             {

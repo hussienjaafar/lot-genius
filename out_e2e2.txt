@@ -1,0 +1,214 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.6, pytest-8.4.1, pluggy-1.6.0 -- C:\Python313\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\Husse\lot-genius\backend
+configfile: pytest.ini
+plugins: anyio-4.10.0, dash-3.2.0, asyncio-1.1.0, base-url-2.1.0, cov-6.2.1, mock-3.14.1, playwright-0.7.0
+asyncio: mode=Mode.AUTO, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 3 items
+
+backend\tests\test_e2e_pipeline.py::test_complete_pipeline_e2e FAILED    [ 33%]
+backend\tests\test_e2e_pipeline.py::test_frontend_ui_elements FAILED     [ 66%]
+backend\tests\test_e2e_pipeline.py::test_file_upload_validation FAILED   [100%]
+
+================================== FAILURES ===================================
+_________________________ test_complete_pipeline_e2e __________________________
+
+    @pytest.mark.asyncio
+    async def test_complete_pipeline_e2e():
+        """Test the complete pipeline from file upload to results display."""
+
+        # Import playwright here to avoid import issues if not installed
+        try:
+            from playwright.async_api import async_playwright
+        except ImportError:
+            pytest.skip("Playwright not installed")
+
+        test_manifest_path = Path("C:/Users/Husse/lot-genius/test_manifest.csv")
+
+        # Ensure test file exists
+        assert test_manifest_path.exists(), f"Test manifest file not found at {test_manifest_path}"
+
+        async with async_playwright() as p:
+            # Launch browser
+            browser = await p.chromium.launch(headless=False, slow_mo=1000)  # Set to False to see the test
+            context = await browser.new_context()
+            page = await context.new_page()
+
+            try:
+                # Listen for console messages and network requests
+                page.on("console", lambda msg: print(f"Console: {msg.text}"))
+                page.on("request", lambda req: print(f"Request: {req.method} {req.url}"))
+                page.on("response", lambda resp: print(f"Response: {resp.status} {resp.url}"))
+
+                # Navigate to the frontend
+>               await page.goto("http://localhost:3001")
+
+backend\tests\test_e2e_pipeline.py:39:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Python313\Lib\site-packages\playwright\async_api\_generated.py:8992: in goto
+    await self._impl_obj.goto(
+C:\Python313\Lib\site-packages\playwright\_impl\_page.py:556: in goto
+    return await self._main_frame.goto(**locals_to_params(locals()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python313\Lib\site-packages\playwright\_impl\_frame.py:153: in goto
+    await self._channel.send(
+C:\Python313\Lib\site-packages\playwright\_impl\_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <playwright._impl._connection.Connection object at 0x000001F2BE256E40>
+cb = <function Channel.send.<locals>.<lambda> at 0x000001F2BE542A20>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        st: List[inspect.FrameInfo] = getattr(
+            task, "__pw_stack__", None
+        ) or inspect.stack(0)
+
+        parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.Error: Page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/
+E           Call log:
+E             - navigating to "http://localhost:3001/", waiting until "load"
+
+C:\Python313\Lib\site-packages\playwright\_impl\_connection.py:558: Error
+---------------------------- Captured stdout call -----------------------------
+Request: GET http://localhost:3001/
+__________________________ test_frontend_ui_elements __________________________
+
+    @pytest.mark.asyncio
+    async def test_frontend_ui_elements():
+        """Test that all required UI elements are present and functional."""
+
+        try:
+            from playwright.async_api import async_playwright
+        except ImportError:
+            pytest.skip("Playwright not installed")
+
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            context = await browser.new_context()
+            page = await context.new_page()
+
+            try:
+>               await page.goto("http://localhost:3001")
+
+backend\tests\test_e2e_pipeline.py:149:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Python313\Lib\site-packages\playwright\async_api\_generated.py:8992: in goto
+    await self._impl_obj.goto(
+C:\Python313\Lib\site-packages\playwright\_impl\_page.py:556: in goto
+    return await self._main_frame.goto(**locals_to_params(locals()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python313\Lib\site-packages\playwright\_impl\_frame.py:153: in goto
+    await self._channel.send(
+C:\Python313\Lib\site-packages\playwright\_impl\_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <playwright._impl._connection.Connection object at 0x000001F2BE267ED0>
+cb = <function Channel.send.<locals>.<lambda> at 0x000001F2BE542D40>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        st: List[inspect.FrameInfo] = getattr(
+            task, "__pw_stack__", None
+        ) or inspect.stack(0)
+
+        parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.Error: Page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/
+E           Call log:
+E             - navigating to "http://localhost:3001/", waiting until "load"
+
+C:\Python313\Lib\site-packages\playwright\_impl\_connection.py:558: Error
+_________________________ test_file_upload_validation _________________________
+
+    @pytest.mark.asyncio
+    async def test_file_upload_validation():
+        """Test file upload validation and UI feedback."""
+
+        try:
+            from playwright.async_api import async_playwright
+        except ImportError:
+            pytest.skip("Playwright not installed")
+
+        test_manifest_path = Path("C:/Users/Husse/lot-genius/test_manifest.csv")
+        assert test_manifest_path.exists()
+
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            context = await browser.new_context()
+            page = await context.new_page()
+
+            try:
+>               await page.goto("http://localhost:3001")
+
+backend\tests\test_e2e_pipeline.py:198:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Python313\Lib\site-packages\playwright\async_api\_generated.py:8992: in goto
+    await self._impl_obj.goto(
+C:\Python313\Lib\site-packages\playwright\_impl\_page.py:556: in goto
+    return await self._main_frame.goto(**locals_to_params(locals()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Python313\Lib\site-packages\playwright\_impl\_frame.py:153: in goto
+    await self._channel.send(
+C:\Python313\Lib\site-packages\playwright\_impl\_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <playwright._impl._connection.Connection object at 0x000001F2BE5AF110>
+cb = <function Channel.send.<locals>.<lambda> at 0x000001F2BE656DE0>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        st: List[inspect.FrameInfo] = getattr(
+            task, "__pw_stack__", None
+        ) or inspect.stack(0)
+
+        parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.Error: Page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/
+E           Call log:
+E             - navigating to "http://localhost:3001/", waiting until "load"
+
+C:\Python313\Lib\site-packages\playwright\_impl\_connection.py:558: Error
+=========================== short test summary info ===========================
+FAILED backend\tests\test_e2e_pipeline.py::test_complete_pipeline_e2e - playwright._impl._errors.Error: Page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/
+Call log:
+  - navigating to "http://localhost:3001/", waiting until "load"
+FAILED backend\tests\test_e2e_pipeline.py::test_frontend_ui_elements - playwright._impl._errors.Error: Page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/
+Call log:
+  - navigating to "http://localhost:3001/", waiting until "load"
+FAILED backend\tests\test_e2e_pipeline.py::test_file_upload_validation - playwright._impl._errors.Error: Page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3001/
+Call log:
+  - navigating to "http://localhost:3001/", waiting until "load"
+============================== 3 failed in 9.82s ==============================

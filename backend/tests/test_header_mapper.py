@@ -20,7 +20,7 @@ def test_map_headers_synonyms():
     assert mapping["SKU"] == "sku_local"
     assert mapping["Item Name"] == "title"
     assert mapping["Model Number"] == "model"
-    assert mapping["UPC"] == "upc_ean_asin"
+    assert mapping["UPC"] == "upc"
     assert mapping["Cond."] == "condition"
     assert mapping["Qty"] == "quantity"
     assert mapping["List Price"] == "msrp"

@@ -1,6 +1,6 @@
 [project]
 name = "lotgenius"
-version = "0.0.1"
+dynamic = ["version"]
 description = "Lot Genius backend utilities (schema, header mapping)"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -14,7 +14,8 @@ dependencies = [
   "great-expectations>=0.18",
   "requests>=2.32",
   "fastapi>=0.100",
-  "uvicorn[standard]>=0.20"
+  "uvicorn[standard]>=0.20",
+  "python-multipart>=0.0.9"
 ]
 
 [build-system]
@@ -23,6 +24,9 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 include = ["lotgenius*", "cli*"]
+
+[tool.setuptools.dynamic]
+version = {attr = "lotgenius.__version__"}
 
 [tool.pytest.ini_options]
 minversion = "7.0"

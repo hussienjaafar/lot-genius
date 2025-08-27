@@ -61,6 +61,16 @@ def _load_last_evidence_record(p):
     type=click.Path(exists=False, dir_okay=False, path_type=Path),
     help="Optional optimizer evidence JSONL path to reference",
 )
+@click.option(
+    "--stress-csv",
+    type=click.Path(exists=False, dir_okay=False, path_type=Path),
+    help="Optional stress scenarios CSV path for Scenario Diffs section",
+)
+@click.option(
+    "--stress-json",
+    type=click.Path(exists=False, dir_okay=False, path_type=Path),
+    help="Optional stress scenarios JSON path for Scenario Diffs section",
+)
 def main(
     items_csv,
     opt_json,
@@ -70,6 +80,8 @@ def main(
     sweep_csv,
     sweep_png,
     evidence_jsonl,
+    stress_csv,
+    stress_json,
 ):
     """
     Generate a concise Lot Genius report from per-unit CSV and optimizer JSON.
@@ -78,7 +90,9 @@ def main(
     opt = json.loads(Path(opt_json).read_text(encoding="utf-8"))
 
     # Generate markdown content
-    markdown_content = _mk_markdown(items, opt, sweep_csv, sweep_png, evidence_jsonl)
+    markdown_content = _mk_markdown(
+        items, opt, sweep_csv, sweep_png, evidence_jsonl, stress_csv, stress_json
+    )
 
     # Write markdown
     out_markdown_path = Path(out_markdown)
@@ -106,13 +120,23 @@ def main(
             "sweep_csv": str(sweep_csv) if sweep_csv else None,
             "sweep_png": str(sweep_png) if sweep_png else None,
             "evidence_jsonl": str(evidence_jsonl) if evidence_jsonl else None,
+            "stress_csv": str(stress_csv) if stress_csv else None,
+            "stress_json": str(stress_json) if stress_json else None,
         },
     }
 
     click.echo(json.dumps(summary, indent=2))
 
 
-def _mk_markdown(items, opt, sweep_csv=None, sweep_png=None, evidence_jsonl=None):
+def _mk_markdown(
+    items,
+    opt,
+    sweep_csv=None,
+    sweep_png=None,
+    evidence_jsonl=None,
+    stress_csv=None,
+    stress_json=None,
+):
     """Generate Markdown report content."""
     # Extract key metrics
     item_count = len(items)
@@ -166,6 +190,27 @@ def _mk_markdown(items, opt, sweep_csv=None, sweep_png=None, evidence_jsonl=None
     except Exception:
         pass
 
+    # Parse stress scenario data if provided
+    stress_df = None
+    if stress_csv and Path(stress_csv).exists():
+        try:
+            stress_df = pd.read_csv(stress_csv)
+        except Exception:
+            pass
+    elif stress_json and Path(stress_json).exists():
+        try:
+            stress_data = json.loads(Path(stress_json).read_text(encoding="utf-8"))
+            if isinstance(stress_data, list) and stress_data:
+                stress_df = pd.DataFrame(stress_data)
+        except Exception:
+            pass
+
+    # Validate stress data has required columns
+    if stress_df is not None:
+        required_cols = ["scenario", "bid", "prob_roi_ge_target", "expected_cash_60d"]
+        if not all(col in stress_df.columns for col in required_cols):
+            stress_df = None
+
     # Format numbers
     def fmt_currency(x):
         return f"${x:,.2f}" if x is not None and not pd.isna(x) else "N/A"
@@ -174,7 +219,7 @@ def _mk_markdown(items, opt, sweep_csv=None, sweep_png=None, evidence_jsonl=None
         return f"{x:.1%}" if x is not None and not pd.isna(x) else "N/A"
 
     def fmt_ratio(x):
-        return f"{x:.2f}×" if x is not None and not pd.isna(x) else "N/A"
+        return f"{x:.2f}x" if x is not None and not pd.isna(x) else "N/A"
 
     def fmt_bool(x):
         if x is True:
@@ -185,9 +230,9 @@ def _mk_markdown(items, opt, sweep_csv=None, sweep_png=None, evidence_jsonl=None
 
     def fmt_bool_emoji(x):
         if x is True:
-            return "✅ Yes"
+            return "Yes"
         if x is False:
-            return "❌ No"
+            return "No"
         return "N/A"
 
     def fmt_prob2(x):
@@ -211,11 +256,11 @@ def _mk_markdown(items, opt, sweep_csv=None, sweep_png=None, evidence_jsonl=None
         [
             "",
             (
-                f"- ROI Target: **{roi_target:.2f}×**"
+                f"- ROI Target: **{roi_target:.2f}x**"
                 if roi_target is not None
                 else "- ROI Target: **N/A**"
             ),
-            f"- Risk Threshold: **P(ROI≥target) ≥ {fmt_prob2(risk_threshold)}**",
+            f"- Risk Threshold: **P(ROI>=target) >= {fmt_prob2(risk_threshold)}**",
             "",
         ]
     )
@@ -225,24 +270,281 @@ def _mk_markdown(items, opt, sweep_csv=None, sweep_png=None, evidence_jsonl=None
             "## Lot Overview",
             "",
             f"- **Total Items:** {item_count:,}",
-            f"- **Estimated Total Value (μ):** {fmt_currency(total_mu)}",
+            f"- **Estimated Total Value (mu):** {fmt_currency(total_mu)}",
             f"- **Estimated Total Value (P50):** {fmt_currency(total_p50)}",
             f"- **Average 60-day Sell Probability:** {fmt_pct(avg_sell_p60)}",
         ]
     )
 
+    # Add Item Details table if Product Confidence data is available
+    has_product_confidence = False
+    if len(items) > 0:
+        # Check if any items have product_confidence in their evidence meta
+        for col in items.columns:
+            if col.startswith("evidence_meta") and "product_confidence" in str(
+                items[col].iloc[0] if pd.notna(items[col].iloc[0]) else ""
+            ):
+                has_product_confidence = True
+                break
+
+        # Alternative check: look for evidence_meta column containing product_confidence
+        if "evidence_meta" in items.columns:
+            sample_meta = (
+                items["evidence_meta"].dropna().iloc[0]
+                if len(items["evidence_meta"].dropna()) > 0
+                else None
+            )
+            if sample_meta and isinstance(sample_meta, str):
+                try:
+                    import json
+
+                    meta_dict = json.loads(sample_meta)
+                    has_product_confidence = "product_confidence" in meta_dict
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
+    if has_product_confidence or "product_confidence" in items.columns:
+        md_lines.extend(["", "## Item Details", ""])
+
+        # Show first 10 items (or all if fewer) in a table format
+        display_items = items.head(10)
+
+        # Table header
+        headers = ["SKU", "Title", "Est. Price", "Sell P60"]
+        if has_product_confidence:
+            headers.append("Product Confidence")
+
+        md_lines.append("| " + " | ".join(headers) + " |")
+        md_lines.append("| " + " | ".join(["---"] * len(headers)) + " |")
+
+        # Table rows
+        for idx, row in display_items.iterrows():
+            # Extract basic fields
+            sku = str(row.get("item_key", row.get("sku", "N/A")))[
+                :20
+            ]  # Truncate long SKUs
+            title = str(row.get("title", "N/A"))[:40] + (
+                "..." if len(str(row.get("title", ""))) > 40 else ""
+            )  # Truncate long titles
+
+            # Price (prefer est_price_p50, fallback to est_price_mu)
+            price = row.get(
+                "est_price_p50", row.get("est_price_mu", row.get("est_price_median"))
+            )
+            price_str = (
+                fmt_currency(price)
+                if price is not None and not pd.isna(price)
+                else "N/A"
+            )
+
+            # Sell probability
+            sell_p60 = row.get("sell_p60")
+            sell_p60_str = (
+                fmt_pct(sell_p60)
+                if sell_p60 is not None and not pd.isna(sell_p60)
+                else "N/A"
+            )
+
+            # Product confidence
+            confidence_str = "N/A"
+            if has_product_confidence:
+                # Try to extract product_confidence from evidence_meta
+                if "evidence_meta" in row and pd.notna(row["evidence_meta"]):
+                    try:
+                        meta_dict = json.loads(str(row["evidence_meta"]))
+                        confidence = meta_dict.get("product_confidence")
+                        if confidence is not None:
+                            confidence_str = f"{confidence:.2f}"
+                    except:
+                        pass
+                # Or directly from product_confidence column
+                elif "product_confidence" in row and pd.notna(
+                    row["product_confidence"]
+                ):
+                    confidence_str = f"{row['product_confidence']:.2f}"
+
+            # Build row
+            row_data = [sku, title, price_str, sell_p60_str]
+            if has_product_confidence:
+                row_data.append(confidence_str)
+
+            md_lines.append("| " + " | ".join(row_data) + " |")
+
+        # Add note if there are more items
+        if len(items) > 10:
+            md_lines.extend(
+                ["", f"*Showing first 10 items of {len(items)} total items.*"]
+            )
+
+    # Get payout lag from opt result or fallback to settings
+    payout_lag_days = opt.get("payout_lag_days")
+    if payout_lag_days is None:
+        from lotgenius.config import settings
+
+        payout_lag_days = settings.PAYOUT_LAG_DAYS
+
+    # Get cashfloor from opt result or fallback to settings
+    cashfloor = opt.get("cashfloor")
+    if cashfloor is None:
+        from lotgenius.config import settings
+
+        cashfloor = settings.CASHFLOOR
+
+    # Consolidated Constraints section
     md_lines.extend(
         [
             "",
-            "## Optimization Parameters",
+            "## Constraints",
             "",
             (
-                f"- **ROI Target:** {roi_target:.2f}×"
+                f"- **ROI Target:** {roi_target:.2f}x"
                 if roi_target is not None
                 else "- **ROI Target:** N/A"
             ),
-            f"- **Risk Threshold:** P(ROI≥target) ≥ {fmt_prob2(risk_threshold)}",
+            f"- **Risk Threshold:** P(ROI>=target) >= {fmt_prob2(risk_threshold)}",
+            f"- **Cashfloor:** {fmt_currency(cashfloor)}",
+            f"- **Payout Lag:** {payout_lag_days} days",
+        ]
+    )
+
+    # Add throughput constraints if available
+    if "throughput" in opt and isinstance(opt["throughput"], dict):
+        throughput = opt["throughput"]
+        throughput_status = "Pass" if throughput.get("throughput_ok") else "Fail"
+        md_lines.append(f"- **Throughput Constraint:** {throughput_status}")
+
+    # Add gating/hazmat counts if evidence summary is available
+    evidence_summary = opt.get("evidence_gate", {}).get("evidence_summary")
+    if evidence_summary:
+        core_count = evidence_summary.get("core_count", 0)
+        upside_count = evidence_summary.get("upside_count", 0)
+        md_lines.extend(
+            [
+                f"- **Gated Items:** {core_count} core, {upside_count} review",
+            ]
+        )
+
+    md_lines.append("")
+
+    md_lines.extend(
+        [
+            "## Optimization Parameters",
             "",
+            (
+                f"- **ROI Target:** {roi_target:.2f}x"
+                if roi_target is not None
+                else "- **ROI Target:** N/A"
+            ),
+            f"- **Risk Threshold:** P(ROI>=target) >= {fmt_prob2(risk_threshold)}",
+            f"- **Payout Lag (days):** {payout_lag_days}",
+            "",
+        ]
+    )
+
+    # Add Gating/Hazmat section when evidence summary is available
+    if evidence_summary:
+        from lotgenius.config import settings
+
+        # Get policy values from settings (these may have been overridden at runtime)
+        gated_brands = settings.GATED_BRANDS_CSV or "None"
+        hazmat_policy = settings.HAZMAT_POLICY or "allow"
+
+        core_count = evidence_summary.get("core_count", 0)
+        upside_count = evidence_summary.get("upside_count", 0)
+        total_items = evidence_summary.get("total_items", core_count + upside_count)
+        gate_pass_rate = evidence_summary.get("gate_pass_rate", 0.0) * 100
+
+        md_lines.extend(
+            [
+                "## Gating/Hazmat",
+                "",
+                f"- **Gated Brands:** {gated_brands}",
+                f"- **Hazmat Policy:** {hazmat_policy}",
+                f"- **Core Items:** {core_count} ({gate_pass_rate:.1f}%)",
+                f"- **Review Items:** {upside_count} ({100 - gate_pass_rate:.1f}%)",
+                f"- **Total Items:** {total_items}",
+                "",
+            ]
+        )
+
+    # Add Throughput section if throughput data is present
+    if "throughput" in opt and isinstance(opt["throughput"], dict):
+        throughput = opt["throughput"]
+        md_lines.extend(
+            [
+                "## Throughput",
+                "",
+                f"- **Mins per unit:** {throughput.get('mins_per_unit', 'N/A')}",
+                f"- **Capacity mins/day:** {throughput.get('capacity_mins_per_day', 'N/A')}",
+                f"- **Total mins required (lot):** {throughput.get('total_minutes_required', 'N/A')}",
+                f"- **Available mins (horizon):** {throughput.get('available_minutes', 'N/A')}",
+                f"- **Throughput OK:** {fmt_bool(throughput.get('throughput_ok'))}",
+                "",
+            ]
+        )
+
+    # Add Pricing Ladder section if ladder data is present
+    if "sell_ladder_segments" in items.columns:
+        # Filter for valid ladder segments (not null, not empty, and valid JSON)
+        def has_valid_ladder(seg):
+            if pd.isna(seg) or seg == "":
+                return False
+            try:
+                parsed = json.loads(seg)
+                return isinstance(parsed, list)  # Allow empty lists as valid
+            except (json.JSONDecodeError, TypeError):
+                return False
+
+        ladder_mask = items["sell_ladder_segments"].apply(has_valid_ladder)
+        ladder_items = items[ladder_mask]
+        non_ladder_items = items[~ladder_mask]
+    else:
+        ladder_items = pd.DataFrame()
+        non_ladder_items = items
+
+    if len(ladder_items) > 0:
+        # Calculate ladder vs non-ladder comparison metrics
+        ladder_avg_p60 = (
+            ladder_items["sell_p60"].mean() if "sell_p60" in ladder_items.columns else 0
+        )
+        non_ladder_avg_p60 = (
+            non_ladder_items["sell_p60"].mean()
+            if "sell_p60" in non_ladder_items.columns and len(non_ladder_items) > 0
+            else 0
+        )
+
+        # Get sample ladder segments for display
+        sample_segments = None
+        if len(ladder_items) > 0 and "sell_ladder_segments" in ladder_items.columns:
+            try:
+                sample_segments_str = ladder_items["sell_ladder_segments"].iloc[0]
+                sample_segments = (
+                    json.loads(sample_segments_str) if sample_segments_str else None
+                )
+            except Exception:
+                pass
+
+        md_lines.extend(
+            [
+                "## Pricing Ladder",
+                "",
+                f"- **Items with Ladder Pricing:** {len(ladder_items)} ({len(ladder_items)/len(items)*100:.1f}%)",
+                f"- **Ladder Avg Sell-through (60d):** {fmt_pct(ladder_avg_p60)}",
+                f"- **Standard Avg Sell-through (60d):** {fmt_pct(non_ladder_avg_p60)}",
+            ]
+        )
+
+        if sample_segments:
+            md_lines.extend(["", "**Sample Pricing Schedule:**", ""])
+            for i, segment in enumerate(sample_segments):
+                md_lines.append(
+                    f"- Days {segment['day_from']}-{segment['day_to']}: {fmt_currency(segment['price'])}"
+                )
+
+        md_lines.append("")
+
+    md_lines.extend(
+        [
             "## Investment Decision",
             "",
         ]
@@ -252,21 +554,21 @@ def _mk_markdown(items, opt, sweep_csv=None, sweep_png=None, evidence_jsonl=None
     if meets_constraints is True:
         md_lines.extend(
             [
-                "🟢 **PROCEED** - This lot meets the configured investment criteria.",
+                "**PROCEED** - This lot meets the configured investment criteria.",
                 "",
                 f"The recommended bid of {fmt_currency(recommended_bid)} has a "
                 f"{fmt_pct(prob_roi_ge_target)} probability of achieving the target ROI of "
-                f"{roi_target if roi_target is not None else 'N/A'}×, which exceeds the Risk Threshold of "
+                f"{roi_target if roi_target is not None else 'N/A'}x, which exceeds the Risk Threshold of "
                 f"{fmt_prob2(risk_threshold)}.",
             ]
         )
     elif meets_constraints is False:
         md_lines.extend(
             [
-                "🔴 **PASS** - This lot does not meet the configured investment criteria.",
+                "**PASS** - This lot does not meet the configured investment criteria.",
                 "",
                 f"No feasible bid was found that achieves the target ROI of "
-                f"{roi_target if roi_target is not None else 'N/A'}× with probability ≥ "
+                f"{roi_target if roi_target is not None else 'N/A'}x with probability >= "
                 f"{fmt_prob2(risk_threshold)}. Consider lowering the ROI Target "
                 "or Risk Threshold, or look for a different lot.",
             ]
@@ -274,11 +576,133 @@ def _mk_markdown(items, opt, sweep_csv=None, sweep_png=None, evidence_jsonl=None
     else:
         md_lines.extend(
             [
-                "🟡 **REVIEW** - Unable to determine investment recommendation.",
+                "**REVIEW** - Unable to determine investment recommendation.",
                 "",
                 "Missing constraint evaluation data. Please check input parameters and optimizer configuration.",
             ]
         )
+
+    # Add Scenario Diffs section if stress data available
+    if stress_df is not None and len(stress_df) > 0:
+        baseline_row = stress_df[stress_df["scenario"] == "baseline"]
+        if len(baseline_row) == 1:
+            baseline = baseline_row.iloc[0]
+            md_lines.extend(["", "## Scenario Diffs", ""])
+
+            # Table header
+            md_lines.extend(
+                [
+                    "| Scenario | Bid | Δ Bid | Prob ≥ Target | Δ Prob | 60d Cash | Δ Cash |",
+                    "|----------|-----|-------|---------------|--------|----------|--------|",
+                ]
+            )
+
+            # Add baseline row
+            md_lines.append(
+                f"| **{baseline['scenario']}** | "
+                f"{fmt_currency(baseline['bid'])} | - | "
+                f"{fmt_pct(baseline['prob_roi_ge_target'])} | - | "
+                f"{fmt_currency(baseline['expected_cash_60d'])} | - |"
+            )
+
+            # Add stressed scenarios with deltas
+            for _, row in stress_df.iterrows():
+                if row["scenario"] != "baseline":
+                    delta_bid = (
+                        row["bid"] - baseline["bid"]
+                        if pd.notna(row["bid"]) and pd.notna(baseline["bid"])
+                        else None
+                    )
+                    delta_prob = (
+                        row["prob_roi_ge_target"] - baseline["prob_roi_ge_target"]
+                        if pd.notna(row["prob_roi_ge_target"])
+                        and pd.notna(baseline["prob_roi_ge_target"])
+                        else None
+                    )
+                    delta_cash = (
+                        row["expected_cash_60d"] - baseline["expected_cash_60d"]
+                        if pd.notna(row["expected_cash_60d"])
+                        and pd.notna(baseline["expected_cash_60d"])
+                        else None
+                    )
+
+                    def fmt_delta_currency(x):
+                        if x is None or pd.isna(x):
+                            return "N/A"
+                        if x >= 0:
+                            return f"+{fmt_currency(x)}"
+                        else:
+                            return f"-{fmt_currency(abs(x))}"
+
+                    def fmt_delta_pct(x):
+                        if x is None or pd.isna(x):
+                            return "N/A"
+                        if x >= 0:
+                            return f"+{fmt_pct(x)}"
+                        else:
+                            return f"-{fmt_pct(abs(x))}"
+
+                    md_lines.append(
+                        f"| **{row['scenario']}** | "
+                        f"{fmt_currency(row['bid'])} | "
+                        f"{fmt_delta_currency(delta_bid)} | "
+                        f"{fmt_pct(row['prob_roi_ge_target'])} | "
+                        f"{fmt_delta_pct(delta_prob)} | "
+                        f"{fmt_currency(row['expected_cash_60d'])} | "
+                        f"{fmt_delta_currency(delta_cash)} |"
+                    )
+
+    # Add Cache Metrics section if CACHE_METRICS=1 and metrics available
+    try:
+        from lotgenius.cache_metrics import get_registry, should_emit_metrics
+
+        if should_emit_metrics():
+            cache_stats = get_registry().get_all_stats()
+            if cache_stats:
+                md_lines.extend(["", "## Cache Metrics", ""])
+
+                # Overall summary
+                total_hits = sum(stats["hits"] for stats in cache_stats.values())
+                total_misses = sum(stats["misses"] for stats in cache_stats.values())
+                total_operations = total_hits + total_misses
+                overall_hit_ratio = (
+                    total_hits / total_operations if total_operations > 0 else 0.0
+                )
+
+                md_lines.extend(
+                    [
+                        f"- **Overall Hit Ratio:** {overall_hit_ratio:.1%}",
+                        f"- **Total Cache Operations:** {total_operations:,}",
+                        f"- **Total Hits:** {total_hits:,}",
+                        f"- **Total Misses:** {total_misses:,}",
+                        "",
+                    ]
+                )
+
+                # Per-cache breakdown if more than one cache
+                if len(cache_stats) > 1:
+                    md_lines.extend(
+                        [
+                            "**Cache Breakdown:**",
+                            "",
+                            "| Cache | Hits | Misses | Hit Ratio | Total Ops |",
+                            "|-------|------|--------|-----------|-----------|",
+                        ]
+                    )
+
+                    for cache_name, stats in sorted(cache_stats.items()):
+                        hit_ratio_str = (
+                            f"{stats['hit_ratio']:.1%}"
+                            if stats["hit_ratio"] > 0
+                            else "0.0%"
+                        )
+                        md_lines.append(
+                            f"| {cache_name} | {stats['hits']:,} | {stats['misses']:,} | "
+                            f"{hit_ratio_str} | {stats['total_operations']:,} |"
+                        )
+    except ImportError:
+        # cache_metrics module not available, skip section
+        pass
 
     # Add artifact references only if files exist
     show_artifacts = False

@@ -1,4 +1,4 @@
-# Acceptance Criteria — Step 1
+# Acceptance Criteria - Step 1
 
 ## Step 1 passes if
 
@@ -58,4 +58,4 @@ cat infra/.env.example | grep SELLTHROUGH_HORIZON_DAYS
 ## Next Step
 
 Once Step 1 is complete and accepted, proceed to:
-**Step 2 — Canonical schema & header mapping (Keepa-first; ROI gate read from env)**
+**Step 2 - Canonical schema & header mapping (Keepa-first; ROI gate read from env)**

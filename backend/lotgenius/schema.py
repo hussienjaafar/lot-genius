@@ -16,6 +16,9 @@ class Item(BaseModel):
     title: str
     brand: str | None = None
     model: str | None = None
+    asin: str | None = None
+    upc: str | None = None
+    ean: str | None = None
     upc_ean_asin: str | None = None
     condition: ConditionEnum | None = None
     quantity: int = 1
@@ -46,6 +49,9 @@ CANONICAL_FIELDS: list[str] = [
     "title",
     "brand",
     "model",
+    "asin",
+    "upc",
+    "ean",
     "upc_ean_asin",
     "condition",
     "quantity",

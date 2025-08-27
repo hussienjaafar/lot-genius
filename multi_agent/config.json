@@ -1,0 +1,30 @@
+{
+  "api_keys": {
+    "openai": "YOUR_OPENAI_API_KEY",
+    "google": "YOUR_GOOGLE_API_KEY",
+    "anthropic": "YOUR_ANTHROPIC_API_KEY"
+  },
+  "models": {
+    "gpt5": "gpt-4-turbo-preview",
+    "gemini": "gemini-pro",
+    "claude": "claude-3-opus-20240229"
+  },
+  "workflow": {
+    "auto_start": false,
+    "polling_interval": 5,
+    "require_human_approval": true,
+    "log_level": "INFO",
+    "max_retries": 3,
+    "timeout_seconds": 300
+  },
+  "paths": {
+    "working_directory": "C:\\Users\\Husse\\lot-genius",
+    "logs": "C:\\Users\\Husse\\lot-genius\\multi_agent\\logs",
+    "backups": "C:\\Users\\Husse\\lot-genius\\multi_agent\\backups"
+  },
+  "notifications": {
+    "enabled": false,
+    "webhook_url": "",
+    "email": ""
+  }
+}

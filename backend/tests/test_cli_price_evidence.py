@@ -2,8 +2,9 @@ import gzip
 import json
 
 import pandas as pd
-from backend.cli.estimate_price import main as cli
 from click.testing import CliRunner
+
+from backend.cli.estimate_price import main as cli
 
 
 def test_cli_exports_price_evidence_ndjson(tmp_path):

@@ -2,10 +2,15 @@ from __future__ import annotations
 
 import json
 import math
+import os
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
+
+from .config import settings
+from .normalize import condition_bucket
+from .pricing import _category_key_from_row
 
 # Heuristics are explicit & tunable (JSON-backed)
 _DEFAULT_RANK_TO_SALES = {
@@ -13,6 +18,9 @@ _DEFAULT_RANK_TO_SALES = {
 }
 
 SELL_EVENT_SOURCE = "sell:estimate"
+
+# Memoized seasonality data
+_SEASONALITY_CACHE: Optional[Dict[str, Dict[str, float]]] = None
 
 
 def load_rank_to_sales(path: Optional[str] = None) -> Dict[str, Dict[str, float]]:
@@ -29,7 +37,8 @@ def load_rank_to_sales(path: Optional[str] = None) -> Dict[str, Dict[str, float]
 def _best_rank_from_row(row: pd.Series) -> Optional[float]:
     # scan a few common columns we may have produced earlier
     for k in [
-        "keepa_sales_rank_med",
+        "keepa_sales_rank_med",  # with underscore
+        "keepa_salesrank_med",  # without underscore (from resolve.py)
         "keepa_rank_med",
         "keepa_sales_rank_p50",
         "sales_rank_med",
@@ -97,6 +106,65 @@ def _price_factor_from_z(z: float, beta: float = 0.8) -> float:
     return min(math.exp(-beta * z), 3.0)
 
 
+def _load_seasonality() -> Dict[str, Dict[str, float]]:
+    """Load seasonality data with memoization."""
+    global _SEASONALITY_CACHE
+
+    if _SEASONALITY_CACHE is not None:
+        return _SEASONALITY_CACHE
+
+    if not settings.SEASONALITY_ENABLED:
+        _SEASONALITY_CACHE = {}
+        return _SEASONALITY_CACHE
+
+    try:
+        if os.path.exists(settings.SEASONALITY_FILE):
+            with open(settings.SEASONALITY_FILE, "r") as f:
+                data = json.load(f)
+                # Filter out non-dict values (like _README)
+                _SEASONALITY_CACHE = {
+                    k: v
+                    for k, v in data.items()
+                    if isinstance(v, dict) and not k.startswith("_")
+                }
+        else:
+            _SEASONALITY_CACHE = {}
+    except Exception:
+        _SEASONALITY_CACHE = {}
+
+    return _SEASONALITY_CACHE
+
+
+def _get_seasonality_factor(
+    row: pd.Series, current_month: Optional[int] = None
+) -> float:
+    """Get seasonality factor for item based on category and current month."""
+    if not settings.SEASONALITY_ENABLED:
+        return 1.0
+
+    # Get current month if not provided
+    if current_month is None:
+        current_month = datetime.now().month
+
+    # Get category from row
+    category = _category_key_from_row(row)
+    if not category:
+        category = "default"
+
+    # Load seasonality data
+    seasonality_data = _load_seasonality()
+
+    # Get category seasonality or fallback to default
+    category_factors = seasonality_data.get(category) or seasonality_data.get("default")
+
+    if not category_factors:
+        return settings.SEASONALITY_DEFAULT
+
+    # Get factor for current month
+    month_key = str(current_month)
+    return float(category_factors.get(month_key, settings.SEASONALITY_DEFAULT))
+
+
 def estimate_sell_p60(
     df_in: pd.DataFrame,
     *,
@@ -123,6 +191,9 @@ def estimate_sell_p60(
         "sell_ptm_z",
         "sell_rank_used",
         "sell_offers_used",
+        "sell_condition_used",
+        "sell_condition_factor",
+        "sell_seasonality_factor",
     ]:
         if col not in df.columns:
             df[col] = None
@@ -161,18 +232,30 @@ def estimate_sell_p60(
             if rank is not None
             else float(baseline_daily_sales)
         )
+        # Get condition and seasonality adjustments
+        condition = condition_bucket(row)
+        condition_factor = settings.CONDITION_VELOCITY_FACTOR.get(condition, 1.0)
+        seasonality_factor = _get_seasonality_factor(row)
+
         # hazard per item
         lam = _hazard_per_item(daily_sales_market, offers, pf, cap=hazard_cap)
+
+        # Apply condition and seasonality adjustments to hazard
+        lam_adjusted = lam * condition_factor * seasonality_factor
+
         # exponential survival -> p(sold <= days) = 1-exp(-λ*days)
-        p60 = 1.0 - math.exp(-lam * float(days))
+        p60 = 1.0 - math.exp(-lam_adjusted * float(days))
         p60 = min(max(p60, 0.0), 1.0)
 
         # write columns
         df.at[idx, "sell_p60"] = float(p60)
-        df.at[idx, "sell_hazard_daily"] = float(lam)
+        df.at[idx, "sell_hazard_daily"] = float(lam_adjusted)
         df.at[idx, "sell_ptm_z"] = float(z)
         df.at[idx, "sell_rank_used"] = float(rank) if rank is not None else None
         df.at[idx, "sell_offers_used"] = int(offers)
+        df.at[idx, "sell_condition_used"] = condition
+        df.at[idx, "sell_condition_factor"] = float(condition_factor)
+        df.at[idx, "sell_seasonality_factor"] = float(seasonality_factor)
 
         events.append(
             {
@@ -195,6 +278,11 @@ def estimate_sell_p60(
                     "hazard_daily": lam,
                     "baseline_daily_sales": baseline_daily_sales,
                     "rank_to_sales": mapping.get("default", {}),
+                    "condition": condition,
+                    "condition_factor": condition_factor,
+                    "seasonality_factor": seasonality_factor,
+                    "hazard_daily_raw": lam,
+                    "hazard_daily_adjusted": lam_adjusted,
                 },
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }

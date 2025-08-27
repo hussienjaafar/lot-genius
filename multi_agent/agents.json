@@ -1,0 +1,5 @@
+{
+  "gpt5": { "role": "orchestrator", "description": "GPT-5 CLI" },
+  "gemini": { "role": "reviewer", "description": "Gemini CLI" },
+  "claude": { "role": "implementer", "description": "Claude CLI" }
+}

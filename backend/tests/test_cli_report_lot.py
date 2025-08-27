@@ -73,18 +73,18 @@ def test_report_lot_basic(tmp_path, sample_items, sample_optimizer):
     assert "# Lot Genius Report" in md_content
     assert "Executive Summary" in md_content
     assert "$75.00" in md_content  # recommended bid
-    assert "1.35×" in md_content  # ROI P50
+    assert "1.35x" in md_content  # ROI P50
     assert "82.0%" in md_content  # probability
     assert (
-        "✅ Yes" in md_content
+        "Yes" in md_content
     )  # meets constraints (emoji formatter in executive summary)
     assert "ROI Target:" in md_content  # Executive Summary bullets when present
     assert "Risk Threshold:" in md_content  # Executive Summary bullets when present
     # Verify Executive Summary bullets appear with bold formatting
     assert "- ROI Target: **" in md_content
     assert "- Risk Threshold: **" in md_content
-    assert "- ROI Target: **1.25×**" in md_content
-    assert "- Risk Threshold: **P(ROI≥target) ≥ 0.80**" in md_content
+    assert "- ROI Target: **1.25x**" in md_content
+    assert "- Risk Threshold: **P(ROI>=target) >= 0.80**" in md_content
 
     # Check JSON output
     output_data = json.loads(result.output)
@@ -181,8 +181,8 @@ def test_report_lot_fails_constraints(tmp_path, sample_items):
 
     # Check failure indication in markdown
     md_content = out_md.read_text(encoding="utf-8")
-    assert "🔴 **PASS**" in md_content
-    assert "**Meets All Constraints:** ❌ No" in md_content
+    assert "**PASS**" in md_content
+    assert "**Meets All Constraints:** No" in md_content
     assert "does not meet" in md_content
 
 
@@ -387,9 +387,7 @@ def test_report_meets_na_when_missing(tmp_path):
     assert res.exit_code == 0
     md = out_md.read_text(encoding="utf-8")
     assert "Meets All Constraints" in md and ("N/A" in md)
-    assert (
-        "🟡 **REVIEW**" in md
-    )  # Should show REVIEW state for missing meets_constraints
+    assert "**REVIEW**" in md  # Should show REVIEW state for missing meets_constraints
 
 
 def test_report_wires_roi_and_risk_from_opt(tmp_path):
@@ -428,7 +426,7 @@ def test_report_wires_roi_and_risk_from_opt(tmp_path):
     md = out_md.read_text(encoding="utf-8")
     assert "ROI Target:" in md and "1.25" in md
     assert "Risk Threshold:" in md and "0.80" in md
-    assert "Meets All Constraints" in md and ("✅ Yes" in md)
+    assert "Meets All Constraints" in md and ("Yes" in md)
 
 
 def test_report_review_and_no_artifacts_when_missing(tmp_path):

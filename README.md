@@ -2,60 +2,260 @@
 
 Decision-ready bidding for liquidation lots from messy manifests.
 
-## North Star
+## Overview
 
-Input: one or more B-Stock manifest CSVs (messy/varied).
-Output: a decision-ready report with lot resale value, recommended maximum bid, and 60-day sell-through — each with confidence, risk, and an evidence ledger.
+Lot Genius transforms complex B-Stock manifest CSVs into actionable investment decisions through automated analysis of product pricing, sell-through probability, and ROI optimization.
 
-**Investment gate (configurable):** only consider bids that satisfy
-ROI ≥ `MIN_ROI_TARGET` within `SELLTHROUGH_HORIZON_DAYS`.
-_Defaults: 1.25 over 60 days._
+**Core Features:**
+
+- **Intelligent parsing**: Handles varied manifest formats with header mapping and validation
+- **ID resolution**: Preserves original ASIN/UPC/EAN fields with UPC-A check digit validation
+- **Confidence-aware evidence gating**: Adaptive quality thresholds based on data ambiguity
+- **Price estimation**: Multi-source ensemble pricing with conservative floors
+- **Survival modeling**: 60-day sell-through probability using market data
+- **ROI optimization**: Monte Carlo simulation with configurable risk thresholds
+- **Calibration tracking**: JSONL logging with outcomes analysis
+- **Web interface**: Next.js frontend with real-time progress streaming and upload modes
+- **Windows compatibility**: UTF-8 file I/O and ASCII-safe console output
+
+```mermaid
+graph TB
+    A[Raw Manifest CSV] --> B[Parse & Clean]
+    B --> C[ID Resolution]
+    C --> D[Price Estimation]
+    D --> E[Sell-through Modeling]
+    E --> F[ROI Optimization]
+    F --> G[Decision Report]
+
+    H[Keepa API] --> C
+    H --> D
+    I[Category Priors] --> D
+    J[Survival Models] --> E
+    K[Risk Constraints] --> F
+```
+
+**Investment Gate:** Only recommend bids satisfying ROI >= `roi_target` (default 1.25×) within `horizon_days` (default 60) at `risk_threshold` confidence (default 80%).
+
+## Try It Now
+
+### Quick Demo (No Setup Required)
+
+Download the demo bundle for a guided introduction:
+
+- **[Latest Demo Bundle](https://github.com/your-org/lot-genius/releases/latest/download/lotgenius_demo.zip)** - Self-contained demo with sample data
+- **[Getting Started Guide](docs/GETTING_STARTED.md)** - Two quick paths: mock frontend demo & CLI report generation
+
+### Live Demo Options
+
+1. **Mock Frontend Demo**: Experience the full UI with `NEXT_PUBLIC_USE_MOCK=1`
+2. **CLI Report Generation**: Generate analysis reports from command line using sample data
+
+Both options work offline and include sample manifests with varied data quality scenarios.
 
 ## Quickstart
 
-```bash
-# Python 3.11 recommended
+### Backend Setup (Windows)
+
+```cmd
+# Install Python 3.13 and create virtual environment
+python -m venv .venv
+.venv\Scripts\activate
+
+# Install dependencies
 pip install -U pip pre-commit
+pip install -e backend
 pre-commit install
-# create .env from template and set KEEPA_KEY
 
-## Evidence Gating (env)
-The pipeline enforces a two-source rule when an item lacks a high-trust ID (UPC/EAN/ASIN).
-Environment variables:
+# Configure environment (optional for CLI usage)
+copy infra\.env.example .env
+# Edit .env and set KEEPA_API_KEY=your_key_here for API access
 
-| Var | Default | Meaning |
-| --- | --- | --- |
-| `EVIDENCE_MIN_COMPS` | `3` | Minimum sold comps within lookback to include in core ROI |
-| `EVIDENCE_LOOKBACK_DAYS` | `180` | Window for counting comps |
-| `EVIDENCE_REQUIRE_SECONDARY` | `true` | Require a secondary signal (e.g. Keepa rank trend or offers present) |
-
-Items failing the gate are marked **REVIEW** and excluded from core ROI; they appear as upside in the report payload under `evidence_summary`.
-cp infra/.env.example .env
+# Windows encoding support (optional)
+set PYTHONUTF8=1
+chcp 65001
 ```
 
-## Stack
+### Frontend Setup
 
-- **Backend:** Python 3.11, FastAPI, Postgres, DuckDB
-- **Data:** Keepa API (primary), optional scrapers (low-trust)
-- **ML:** scikit-learn, scipy (survival models), Monte Carlo optimization
-- **Observability:** Sentry, Prometheus/Grafana, OpenTelemetry
-- **CI/CD:** GitHub Actions, pre-commit hooks
+```cmd
+cd frontend
+npm install
+npm run dev
+# Visit http://localhost:3000
+```
 
-## Decision Policy (env)
+**Upload Modes:**
 
-- `MIN_ROI_TARGET` (default 1.25)
-- `SELLTHROUGH_HORIZON_DAYS` (default 60)
-- `RISK_THRESHOLD` (default 0.80)
-- `CASHFLOOR` (default 0)
-- `HEADER_COVERAGE_MIN` (default 0.70) — minimum header coverage for manifest validation
+- **Proxy Mode** (default): Uses Next.js API route `/api/pipeline/upload/stream`
+- **Direct Mode**: Connects directly to FastAPI backend `/v1/pipeline/upload/stream`
 
-## Data Sources
+**Environment Variables:**
 
-- Keepa API (Amazon price/rank/offer history)
-- Optional scrapers (low-trust; behind `ENABLE_SCRAPERS=false` by default)
-- Optional manual CSV imports for comps
+```cmd
+# For direct backend mode
+set NEXT_PUBLIC_BACKEND_URL=http://localhost:8787
+set NEXT_PUBLIC_API_KEY=your_secret_key_here
+```
 
-## 60-Second Map Preview (Step 2)
+### CLI Quick Start
+
+```cmd
+# Analyze a manifest CSV end-to-end
+python -m backend.cli.report_lot data\samples\minimal.csv ^
+  --opt-json data\samples\opt.json ^
+  --out-markdown reports\lot_report.md
+
+# Run calibration analysis
+python -m backend.cli.calibration_report ^
+  data\calibration\predictions.jsonl ^
+  data\calibration\outcomes.csv ^
+  --out-json reports\calibration_report.json
+```
+
+### API Server
+
+```cmd
+# Start FastAPI server
+uvicorn backend.app.main:app --port 8787 --reload
+
+# Optional: Set API key for authentication
+set LOTGENIUS_API_KEY=your_secret_key_here
+
+# Test endpoint
+curl http://localhost:8787/healthz
+
+# Test with API key (if set)
+curl -H "X-API-Key: your_secret_key_here" http://localhost:8787/v1/optimize
+```
+
+## Architecture
+
+- **Backend:** Python 3.13, FastAPI, scikit-learn, scipy
+- **Frontend:** Next.js 14, TypeScript, Tailwind CSS
+- **Data Sources:** Keepa API (primary), manifest CSVs
+- **Storage:** SQLite (caching), JSONL (audit trails)
+- **ML/Stats:** Monte Carlo simulation, survival analysis, price ensembles
+
+**Key Modules:**
+
+- `lotgenius.parsing` - Manifest header mapping and validation
+- `lotgenius.pricing` - Multi-source price estimation with floors
+- `lotgenius.survivorship` - Sell-through probability modeling
+- `lotgenius.roi` - Monte Carlo ROI optimization
+- `lotgenius.calibration` - Prediction logging and outcomes analysis
+
+## Environment Configuration
+
+**Required:**
+
+- `KEEPA_API_KEY` - Your Keepa API key for product data
+
+**Key Settings:**
+
+- `SELLTHROUGH_HORIZON_DAYS` (default 60) - Sell-through time window
+- `MIN_ROI_TARGET` (default 1.25) - Minimum ROI threshold
+- `RISK_THRESHOLD` (default 0.80) - Risk tolerance (80% confidence)
+- `CASHFLOOR` (default 0) - Minimum cash recovery constraint
+- `HEADER_COVERAGE_MIN` (default 0.70) - Manifest validation threshold
+- `SURVIVAL_MODEL` (default "ladder") - Survival model variant ("ladder", "default")
+
+**Evidence Gating (Confidence-Aware):**
+
+- `EVIDENCE_MIN_COMPS_BASE` (default 3) - Base minimum sold comparables
+- `EVIDENCE_AMBIGUITY_BONUS_PER_FLAG` (default 1) - Extra comps required per ambiguity flag
+- `EVIDENCE_MIN_COMPS_MAX` (default 5) - Maximum required comparables cap
+- `EVIDENCE_LOOKBACK_DAYS` (default 180) - Comp search window
+- `EVIDENCE_REQUIRE_SECONDARY` (default true) - Require rank/offer signals
+
+**Scraper Configuration:**
+
+- `SCRAPER_SIMILARITY_MIN` - Minimum similarity threshold for query results
+- `PRICE_OUTLIER_K` (default 3.5) - MAD K-factor for price outlier detection
+
+## Testing
+
+**Run targeted tests (recommended):**
+
+```cmd
+set PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
+python -m pytest -q backend\tests\test_roi_mc.py
+python -m pytest backend\tests\test_calibration_log.py -v
+```
+
+**Common pytest patterns:**
+
+```cmd
+# Quick smoke tests
+python -m pytest backend\tests\test_api_*.py -q
+
+# Specific module with coverage
+python -m pytest backend\tests\test_survivorship_*.py --cov=lotgenius.survivorship
+
+# Integration tests (requires KEEPA_API_KEY)
+python -m pytest backend\tests\test_*_integration.py -v
+```
+
+## Documentation
+
+📖 **[Complete Documentation](docs/INDEX.md)**
+
+- **[Architecture Guide](docs/architecture.md)** - System design and data flow
+- **[API Reference](docs/backend/api.md)** - HTTP endpoints and schemas
+- **[CLI Commands](docs/backend/cli.md)** - Command-line tools and examples
+- **[ROI & Optimization](docs/backend/roi.md)** - Simulation parameters and constraints
+- **[Calibration Guide](docs/backend/calibration.md)** - Logging and outcomes analysis
+- **[Frontend Components](docs/frontend/ui.md)** - UI components and SSE streaming
+- **[Windows Encoding Guide](docs/operations/windows-encoding.md)** - Windows compatibility and UTF-8 setup
+- **[Operational Runbooks](docs/operations/runbooks/)** - Step-by-step procedures
+- **[Validation Guide](docs/operations/runbooks/validation.md)** - E2E testing and validation
+
+**Gap Fix Run Logs:**
+
+- [Gap Fix 01: Header Mapping](multi_agent/runlogs/gapfix_01_header_mapping.md)
+- [Gap Fix 02: UPC Check Digit](multi_agent/runlogs/gapfix_02_upc_check_digit.md)
+- [Gap Fix 03: ID Resolution Ledger](multi_agent/runlogs/gapfix_03_id_resolution_ledger.md)
+- [Gap Fix 04: Frontend Upload](multi_agent/runlogs/gapfix_04_frontend_upload.md)
+- [Gap Fix 05: Scraper Query Filtering](multi_agent/runlogs/gapfix_05_scraper_query_filtering.md)
+- [Gap Fix 06: Confidence Gating](multi_agent/runlogs/gapfix_06_confidence_gating.md)
+- [Gap Fix 07: E2E Validation](multi_agent/runlogs/gapfix_07_e2e_validation.md)
+- [Gap Fix 08: Windows Encoding](multi_agent/runlogs/gapfix_08_windows_encoding.md)
+
+## Key Features Detail
+
+### ID Resolution and Precedence
+
+**Field Preservation:** Original `asin`, `upc`, `ean` fields are preserved; `upc_ean_asin` is populated using precedence: asin > upc > ean.
+
+**Resolver Precedence:** Resolution engine uses: asin > upc (valid check digit) > ean > upc_ean_asin.
+
+**UPC-A Validation:** UPC codes are validated using check digit algorithm before resolution.
+
+**Evidence Ledger:** All resolution attempts logged with `identifier_source`, `identifier_type`, `identifier_used` metadata.
+
+### Confidence-Aware Evidence Gating
+
+**Adaptive Thresholds:** Evidence requirements increase based on data quality:
+
+- **Clean items**: 3 sold comps + secondary signals (base threshold)
+- **Ambiguous items**: Up to 5 sold comps based on ambiguity flags:
+  - `generic:title` - Contains generic terms (bundle, lot, damaged, etc.)
+  - `ambiguous:brand` - Missing or empty brand information
+  - `ambiguous:condition` - Unknown or unspecified condition
+
+**High-trust ID Bypass:** Items with confident ASIN/UPC/EAN matches bypass evidence gates.
+
+### Scraper Query Strategy
+
+**Query Priority:**
+
+1. Exact UPC lookup
+2. Exact ASIN lookup
+3. "Brand" "Model" targeted search
+4. Filtered title fallback
+
+**Quality Filtering:** Similarity matching, recency filters, model validation, condition filtering, and price outlier detection (MAD K=3.5).
+
+## Legacy CLI Examples
 
 ```bash
 # from repo root
@@ -647,14 +847,7 @@ curl -H "X-API-Key: $LOTGENIUS_API_KEY" \
       }' | jq .
 ```
 
-**Streaming (SSE):**
-
-```bash
-curl -N -H "X-API-Key: $LOTGENIUS_API_KEY" \
-  -X POST http://localhost:8787/v1/optimize/stream \
-  -H 'Content-Type: application/json' \
-  -d '{"items_csv":"data/samples/minimal.csv","opt_json_inline":{"lo":0,"hi":1000,"roi_target":1.25,"risk_threshold":0.80}}'
-```
+**Note**: Optimization only supports blocking requests. Use pipeline upload stream for SSE progress.
 
 ### Pipeline API (end-to-end)
 
@@ -662,7 +855,7 @@ curl -N -H "X-API-Key: $LOTGENIUS_API_KEY" \
 
 ```bash
 curl -H "X-API-Key: $LOTGENIUS_API_KEY" \
-  -X POST http://localhost:8787/v1/pipeline \
+  -X POST http://localhost:8787/v1/report \
   -H 'Content-Type: application/json' \
   -d '{
         "items_csv":"data/samples/minimal.csv",
@@ -674,7 +867,7 @@ curl -H "X-API-Key: $LOTGENIUS_API_KEY" \
 
 ```bash
 curl -N -H "X-API-Key: $LOTGENIUS_API_KEY" \
-  -X POST http://localhost:8787/v1/pipeline/stream \
+  -X POST http://localhost:8787/v1/report/stream \
   -H 'Content-Type: application/json' \
   -d '{"items_csv":"data/samples/minimal.csv","opt_json_inline":{"lo":0,"hi":1000,"roi_target":1.25,"risk_threshold":0.80}}'
 ```
@@ -712,14 +905,7 @@ curl -H "X-API-Key: $LOTGENIUS_API_KEY" \
   http://localhost:8787/v1/optimize/upload | jq .
 ```
 
-**Streaming (optimizer):**
-
-```bash
-curl -N -H "X-API-Key: $LOTGENIUS_API_KEY" \
-  -F items_csv=@data/samples/minimal.csv \
-  -F opt_json=@data/samples/opt.json \
-  http://localhost:8787/v1/optimize/upload/stream
-```
+**Note**: Optimizer upload only supports blocking requests. Use pipeline upload stream for SSE progress.
 
 **With inline optimizer config:**
 

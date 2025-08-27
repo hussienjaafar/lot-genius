@@ -14,7 +14,7 @@ from lotgenius.pricing import estimate_prices
     "--cv-fallback",
     default=0.20,
     show_default=True,
-    help="Fallback CV (σ/μ) when a source lacks spread info",
+    help="Fallback CV (sigma/mu) when a source lacks spread info",
 )
 @click.option(
     "--prior-keepa", default=0.50, show_default=True, help="Source prior for Keepa"
@@ -68,7 +68,7 @@ from lotgenius.pricing import estimate_prices
     "--salvage-floor-frac",
     type=float,
     default=None,
-    help="Salvage floor as fraction of μ (e.g., 0.1 for 10%)",
+    help="Salvage floor as fraction of mu (e.g., 0.1 for 10%)",
 )
 @click.option(
     "--price-evidence-out",
@@ -99,11 +99,11 @@ def main(
     gzip_evidence: bool,
 ):
     """
-    Compute per-item price distributions (μ, σ, P5/P50/P95) from enriched CSV (Step 6),
+    Compute per-item price distributions (mu, sigma, P5/P50/P95) from enriched CSV (Step 6),
     and emit price evidence records. Does not hit the network.
     """
     priors = {"keepa": prior_keepa, "ebay": prior_ebay, "other": prior_other}
-    df = pd.read_csv(input_csv)
+    df = pd.read_csv(input_csv, encoding="utf-8")
     df2, price_ledger = estimate_prices(
         df,
         cv_fallback=cv_fallback,
@@ -114,7 +114,7 @@ def main(
     )
 
     out_csv.parent.mkdir(parents=True, exist_ok=True)
-    df2.to_csv(out_csv, index=False)
+    df2.to_csv(out_csv, index=False, encoding="utf-8")
 
     # Combine with prior ledger if provided
     combined_records = []

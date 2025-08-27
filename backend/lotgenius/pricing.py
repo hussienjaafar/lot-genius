@@ -9,6 +9,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 
+from .config import settings
+
 # Reuse EvidenceRecord for consistency
 from .resolve import EvidenceRecord
 
@@ -181,7 +183,13 @@ def build_sources_from_row(
     Build zero-or-more SourceStat entries from a row with Keepa stats.
     - If condition is New/Like-New: prefer keepa:new; else prefer keepa:used.
     - If preferred is missing, fall back to the other if present.
+    - Apply condition multipliers to price estimates.
     """
+    # Get normalized condition for multipliers
+    from .normalize import condition_bucket
+
+    normalized_cond = condition_bucket(row)
+    condition_factor = settings.CONDITION_PRICE_FACTOR.get(normalized_cond, 1.0)
     cond = str(row.get("condition") or "").strip().lower()
     # normalized new-ish?
     is_newish = cond in {
@@ -202,10 +210,12 @@ def build_sources_from_row(
     sources: List[SourceStat] = []
     # Preferred path
     if is_newish and new_med is not None:
+        # Apply condition multiplier to mu
+        adjusted_mu = new_med * condition_factor
         sources.append(
             SourceStat(
                 "keepa:new",
-                new_med,
+                adjusted_mu,
                 cv_fallback,
                 n_proxy,
                 recency,
@@ -213,10 +223,12 @@ def build_sources_from_row(
             )
         )
     elif (not is_newish) and (used_med is not None):
+        # Apply condition multiplier to mu
+        adjusted_mu = used_med * condition_factor
         sources.append(
             SourceStat(
                 "keepa:used",
-                used_med,
+                adjusted_mu,
                 cv_fallback,
                 n_proxy,
                 recency,
@@ -225,10 +237,12 @@ def build_sources_from_row(
         )
     # Fallback path
     elif new_med is not None:
+        # Apply condition multiplier to mu
+        adjusted_mu = new_med * condition_factor
         sources.append(
             SourceStat(
                 "keepa:new",
-                new_med,
+                adjusted_mu,
                 cv_fallback,
                 n_proxy,
                 recency,
@@ -236,10 +250,12 @@ def build_sources_from_row(
             )
         )
     elif used_med is not None:
+        # Apply condition multiplier to mu
+        adjusted_mu = used_med * condition_factor
         sources.append(
             SourceStat(
                 "keepa:used",
-                used_med,
+                adjusted_mu,
                 cv_fallback,
                 n_proxy,
                 recency,
@@ -248,67 +264,42 @@ def build_sources_from_row(
         )
 
     # Add external comps sources if available and enabled
-    try:
-        from .pricing.external_comps import (
-            external_comps_estimate,
-            get_external_comps_prior_weight,
-            is_external_comps_available,
-        )
+    if settings.ENABLE_EBAY_SCRAPER and settings.SCRAPER_TOS_ACK:
+        try:
+            from .pricing_modules.external_comps import external_comps_estimator
 
-        if is_external_comps_available():
-            # Generate query terms from the row data
-            query_terms = []
+            # Convert row to dict for external_comps_estimator
+            item_dict = row.to_dict()
 
-            # Try to extract search terms from common columns
-            for col in ["title", "description", "name", "product_name", "item_name"]:
-                if col in row.index and pd.notna(row[col]):
-                    # Take first few words as search terms
-                    terms = str(row[col]).strip().split()[:3]
-                    query_terms.extend(terms)
-                    break
+            # Get external comps estimate
+            ext_estimate = external_comps_estimator(item_dict)
 
-            # Add brand/model if available
-            for col in ["brand", "model", "manufacturer"]:
-                if col in row.index and pd.notna(row[col]):
-                    query_terms.append(str(row[col]).strip())
-
-            if query_terms:
-                # Get external comps estimate and write evidence
-                external_price, evidence_summary = external_comps_estimate(
-                    query_terms, evidence_ledger
+            if ext_estimate and ext_estimate.get("point"):
+                # Apply condition multiplier to external comps too
+                adjusted_ext_mu = ext_estimate["point"] * condition_factor
+                # Add external comps as a source with higher CV
+                sources.append(
+                    SourceStat(
+                        name="external_comps",
+                        mu=adjusted_ext_mu,
+                        cv=cv_fallback * 1.5,  # Higher uncertainty for external sources
+                        n=ext_estimate.get("n", 1),
+                        recency=(
+                            ext_estimate.get("recency_days", 1.0)
+                            if ext_estimate.get("recency_days")
+                            else 0.9
+                        ),
+                        prior=ext_estimate.get(
+                            "weight_prior", settings.EXTERNAL_COMPS_PRIOR_WEIGHT
+                        ),
+                    )
                 )
-
-                if external_price and external_price > 0:
-                    # Add external comps as a source
-                    external_prior = get_external_comps_prior_weight()
-                    sources.append(
-                        SourceStat(
-                            "external_comps",
-                            external_price,
-                            cv_fallback
-                            * 1.5,  # Higher uncertainty for external sources
-                            max(1, len(query_terms)),  # Strength based on query quality
-                            recency * 0.8,  # Slightly lower recency weight
-                            external_prior,
-                        )
-                    )
-                elif evidence_ledger is not None:
-                    # Still write evidence even if no price estimate
-                    evidence_ledger.append(
-                        EvidenceRecord(
-                            step="external_comps",
-                            status="no_estimate",
-                            **evidence_summary,
-                        )
-                    )
-    except ImportError:
-        # External comps module not available
-        pass
-    except Exception as e:
-        # Log error but don't fail pricing
-        import logging
-
-        logging.getLogger(__name__).warning(f"External comps error: {e}")
+        except ImportError:
+            # External comps module not available
+            pass
+        except Exception:
+            # Log error but don't fail pricing
+            pass
 
     return sources
 
@@ -361,6 +352,10 @@ def estimate_prices(
     category_priors = load_category_priors(category_priors_path)
 
     df = df_in.copy()
+
+    # Import condition normalization
+    from .normalize import condition_bucket
+
     for col in [
         "est_price_mu",
         "est_price_sigma",
@@ -371,12 +366,19 @@ def estimate_prices(
         "est_price_p5_floored",
         "est_price_floor_rule",
         "est_price_category",
+        "condition_bucket",
+        "condition_factor",
     ]:
         if col not in df.columns:
             df[col] = None
 
     ledger: List[EvidenceRecord] = []
     for idx, row in df.iterrows():
+        # Get normalized condition and factor
+        normalized_cond = condition_bucket(row)
+        cond_factor = settings.CONDITION_PRICE_FACTOR.get(normalized_cond, 1.0)
+        df.at[idx, "condition_bucket"] = normalized_cond
+        df.at[idx, "condition_factor"] = cond_factor
         srcs = build_sources_from_row(
             row,
             priors=priors,
@@ -427,6 +429,8 @@ def estimate_prices(
                 "category_requested": requested_key,
                 "category_used": used_key,
                 "category_fallback": bool(used_key != requested_key),
+                "condition_bucket": normalized_cond,
+                "condition_factor": cond_factor,
                 # uniform naming for UI + backward-compat
                 "est_price_p5": p5,
                 "est_price_p5_floored": (

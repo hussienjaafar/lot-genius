@@ -68,4 +68,6 @@ def test_full_output_with_flag(tmp_path):
     assert res.exit_code == 0
     data = json.loads(outp.read_text(encoding="utf-8"))
     assert "revenue" in data and "cash_60d" in data and "roi" in data
-    assert len(data["revenue"]) > 0 and len(data["cash_60d"]) > 0 and len(data["roi"]) > 0
+    assert (
+        len(data["revenue"]) > 0 and len(data["cash_60d"]) > 0 and len(data["roi"]) > 0
+    )

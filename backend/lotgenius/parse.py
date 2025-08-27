@@ -53,6 +53,9 @@ _CANONICAL_STR_COLS = [
     "title",
     "brand",
     "model",
+    "asin",
+    "upc",
+    "ean",
     "upc_ean_asin",
     "notes",
     "category_hint",
@@ -101,16 +104,52 @@ def _strip_strings(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _normalize_id_fields(df: pd.DataFrame) -> pd.DataFrame:
-    # UPC/EAN/ASIN often have spaces/hyphens; keep alnum only
+    # Normalize individual ID fields first
+    def _norm_id(x: str | None) -> str | None:
+        if not isinstance(x, str):
+            return x
+        y = re.sub(r"[^0-9A-Za-z]", "", x)
+        return y or None
+
+    # Normalize separate ID fields
+    for id_field in ["asin", "upc", "ean"]:
+        if id_field in df.columns:
+            df[id_field] = df[id_field].apply(_norm_id)
+
+    # Normalize canonical field if present
     if "upc_ean_asin" in df.columns:
-
-        def _norm_id(x: str | None) -> str | None:
-            if not isinstance(x, str):
-                return x
-            y = re.sub(r"[^0-9A-Za-z]", "", x)
-            return y or None
-
         df["upc_ean_asin"] = df["upc_ean_asin"].apply(_norm_id)
+
+    # Populate canonical upc_ean_asin with precedence: asin > upc > ean > existing canonical
+    # Create the canonical column if any ID fields exist
+    has_id_fields = any(
+        field in df.columns for field in ["asin", "upc", "ean", "upc_ean_asin"]
+    )
+
+    if has_id_fields:
+        # Ensure canonical column exists
+        if "upc_ean_asin" not in df.columns:
+            df["upc_ean_asin"] = None
+
+        def _populate_canonical(row):
+            # If canonical already has a value and no separate fields, keep it
+            canonical_val = row.get("upc_ean_asin")
+            asin_val = row.get("asin")
+            upc_val = row.get("upc")
+            ean_val = row.get("ean")
+
+            # Apply precedence: asin > upc > ean > existing canonical
+            if asin_val:
+                return asin_val
+            elif upc_val:
+                return upc_val
+            elif ean_val:
+                return ean_val
+            else:
+                return canonical_val
+
+        df["upc_ean_asin"] = df.apply(_populate_canonical, axis=1)
+
     return df
 
 

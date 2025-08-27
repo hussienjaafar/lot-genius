@@ -1,4 +1,4 @@
-# Architecture Notes (v0.1) — Lot Genius
+# Architecture Notes (v0.1) - Lot Genius
 
 ## Services
 

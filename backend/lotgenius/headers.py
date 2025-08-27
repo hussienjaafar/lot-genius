@@ -12,6 +12,9 @@ CANONICAL = [
     "title",
     "brand",
     "model",
+    "asin",
+    "upc",
+    "ean",
     "upc_ean_asin",
     "condition",
     "quantity",
@@ -25,15 +28,31 @@ CANONICAL = [
 
 # Synonyms for first-pass exact/normalized checks
 SYNONYMS: Dict[str, list[str]] = {
-    "upc_ean_asin": [
+    "asin": [
+        "ASIN",
+        "Amazon ASIN",
+        "ASIN Code",
+    ],
+    "upc": [
         "UPC",
         "UPC Code",
-        "Barcode",
+        "UPC-A",
+        "Universal Product Code",
+    ],
+    "ean": [
         "EAN",
+        "EAN13",
+        "EAN-13",
+        "European Article Number",
         "GTIN",
-        "ASIN",
+        "GTIN-13",
+    ],
+    "upc_ean_asin": [
+        "Barcode",
         "UPC/EAN",
         "Product Code",
+        "Product ID",
+        "Identifier",
     ],
     "condition": ["Condition", "Cond.", "Grade", "Grading", "Item Condition"],
     "quantity": ["Qty", "QTY", "QTY.", "Quantity", "Count", "Units"],

@@ -1,0 +1,57 @@
+[
+  {
+    "scenario": "baseline",
+    "recommended_bid": 117.314453125,
+    "roi_p50": 1.40673524141958,
+    "prob_roi_ge_target": 0.8,
+    "expected_cash_60d": 130.8149944306614,
+    "meets_constraints": true,
+    "roi_p5": 1.066663349942212,
+    "roi_p95": 1.8448135636041711,
+    "cash_60d_p5": 25.66928077347463
+  },
+  {
+    "scenario": "price_down_15",
+    "recommended_bid": 97.802734375,
+    "roi_p50": 1.432861975726151,
+    "prob_roi_ge_target": 0.83,
+    "expected_cash_60d": 111.08565726606219,
+    "meets_constraints": true,
+    "roi_p5": 1.0869231224590539,
+    "roi_p95": 1.8797699405532073,
+    "cash_60d_p5": 21.76368865745343
+  },
+  {
+    "scenario": "returns_up_30",
+    "recommended_bid": 117.314453125,
+    "roi_p50": 1.40673524141958,
+    "prob_roi_ge_target": 0.8,
+    "expected_cash_60d": 130.8149944306614,
+    "meets_constraints": true,
+    "roi_p5": 1.066663349942212,
+    "roi_p95": 1.8448135636041711,
+    "cash_60d_p5": 25.66928077347463
+  },
+  {
+    "scenario": "shipping_up_20",
+    "recommended_bid": 117.314453125,
+    "roi_p50": 1.40673524141958,
+    "prob_roi_ge_target": 0.8,
+    "expected_cash_60d": 130.8149944306614,
+    "meets_constraints": true,
+    "roi_p5": 1.066663349942212,
+    "roi_p95": 1.8448135636041711,
+    "cash_60d_p5": 25.66928077347463
+  },
+  {
+    "scenario": "sell_p60_down_10",
+    "recommended_bid": 107.55859375,
+    "roi_p50": 1.5378047970477042,
+    "prob_roi_ge_target": 0.85,
+    "expected_cash_60d": 115.54891628162437,
+    "meets_constraints": true,
+    "roi_p5": 1.1019461016754895,
+    "roi_p95": 1.9979862034614029,
+    "cash_60d_p5": 0.0
+  }
+]

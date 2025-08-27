@@ -1,0 +1,15 @@
+{
+  "lo": 0,
+  "hi": 1500,
+  "roi_target": 1.25,
+  "risk_threshold": 0.8,
+  "sims": 3000,
+  "marketplace_fee_pct": 0.13,
+  "payment_fee_pct": 0.03,
+  "per_order_fee_fixed": 0.5,
+  "shipping_per_order": 7.5,
+  "packaging_per_order": 0.75,
+  "refurb_per_order": 2.5,
+  "return_rate": 0.1,
+  "salvage_frac": 0.4
+}

@@ -16,7 +16,7 @@ from lotgenius.parse import parse_and_clean
     "--explode/--no-explode",
     default=True,
     show_default=True,
-    help="Explode rows by quantity→one unit per row",
+    help="Explode rows by quantity -> one unit per row",
 )
 @click.option(
     "--out",
@@ -47,7 +47,7 @@ def main(
     summary: bool,
 ):
     """
-    Map → Clean → (optional) Explode a raw manifest CSV.
+    Map -> Clean -> (optional) Explode a raw manifest CSV.
     If --output is provided, writes the cleaned/exploded table to that path (csv/parquet/json).
     Always prints a small JSON summary when --summary is on.
     """
@@ -59,7 +59,7 @@ def main(
             res.df_exploded if explode and res.df_exploded is not None else res.df_clean
         )
         if out_fmt.lower() == "csv":
-            df.to_csv(output_path, index=False)
+            df.to_csv(output_path, index=False, encoding="utf-8")
         elif out_fmt.lower() == "parquet":
             df.to_parquet(output_path, index=False)
         else:

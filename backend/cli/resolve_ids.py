@@ -73,7 +73,7 @@ def main(
                 df[col] = None
 
     out_enriched.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(out_enriched, index=False)
+    df.to_csv(out_enriched, index=False, encoding="utf-8")
     final_ledger_path = write_ledger_jsonl(ledger, out_ledger, gzip_output=gzip_ledger)
 
     # Compute source counts

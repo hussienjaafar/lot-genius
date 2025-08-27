@@ -1,8 +1,8 @@
-# Glossary — Lot Genius
+# Glossary - Lot Genius
 
 ## Key Terms
 
-**Investment gate:** Minimum decision rule — ROI ≥ `MIN_ROI_TARGET` within `SELLTHROUGH_HORIZON_DAYS`; if unmet at any bid, result is **DO NOT BID**.
+**Investment gate:** Minimum decision rule - ROI >= `MIN_ROI_TARGET` within `SELLTHROUGH_HORIZON_DAYS`; if unmet at any bid, result is **DO NOT BID**.
 
 **VaR80:** Value at Risk - 20th percentile of ROI distribution (downside risk metric).
 
@@ -26,7 +26,7 @@
 
 **Trust level:** Confidence rating for data sources (high for APIs, low for scrapers).
 
-**Recency decay:** Time-based weighting where older price data receives less weight (λ=0.03/day).
+**Recency decay:** Time-based weighting where older price data receives less weight (lambda=0.03/day).
 
 **Quantity explode:** Converting multi-quantity line items into individual unit rows.
 

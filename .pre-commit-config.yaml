@@ -57,6 +57,23 @@ repos:
       - id: detect-secrets
         exclude: package-lock\.json
 
+  # Local documentation quality checks
+  - repo: local
+    hooks:
+      - id: check-docs-ascii
+        name: Check docs for ASCII compliance
+        entry: python scripts/check_ascii.py docs
+        language: system
+        files: ^docs/.*\.md$
+        pass_filenames: false
+
+      - id: check-markdown-links
+        name: Check markdown links
+        entry: python scripts/check_markdown_links.py docs
+        language: system
+        files: ^docs/.*\.md$
+        pass_filenames: false
+
   # Markdown linting (disabled for now due to line length conflicts)
   # - repo: https://github.com/igorshubovych/markdownlint-cli
   #   rev: v0.39.0

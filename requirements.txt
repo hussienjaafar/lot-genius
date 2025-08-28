@@ -19,6 +19,3 @@ great-expectations>=0.18
 rapidfuzz>=3.9
 pydantic-settings>=2.2
 click>=8.1
-
-# Install the backend package
--e ./backend

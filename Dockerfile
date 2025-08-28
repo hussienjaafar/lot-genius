@@ -10,14 +10,15 @@ RUN apt-get update && apt-get install -y \
 
 # Copy requirements first for better Docker layer caching
 COPY requirements.txt .
-COPY backend/requirements.txt backend/
-COPY backend/pyproject.toml backend/
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application
 COPY . .
+
+# Add the current directory to PYTHONPATH so backend modules can be imported
+ENV PYTHONPATH=/app:/app/backend
 
 # Expose port
 EXPOSE 8000

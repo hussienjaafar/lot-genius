@@ -28,4 +28,4 @@ EXPOSE 8000
 #   CMD python -c "import requests; requests.get('http://localhost:${PORT:-8000}/healthz', timeout=5)" || exit 1
 
 # Start the application - Railway will set PORT environment variable
-CMD uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-8000}
+CMD ["sh", "-c", "uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT"]

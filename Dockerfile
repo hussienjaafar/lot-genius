@@ -27,5 +27,5 @@ EXPOSE 8000
 # HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 #   CMD python -c "import requests; requests.get('http://localhost:${PORT:-8000}/healthz', timeout=5)" || exit 1
 
-# Start the application - Railway will set PORT environment variable
-CMD ["sh", "-c", "uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT"]
+# Start the application - use exec form with explicit shell
+CMD ["sh", "-c", "echo 'Starting on port:' $PORT && uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-8080} --log-level info"]

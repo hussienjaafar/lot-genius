@@ -1,0 +1,51 @@
+node_modules
+.venv
+.git
+.pytest_cache
+.ruff_cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+.env
+.env.local
+*.log
+.DS_Store
+Thumbs.db
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Test files
+test_*.py
+tests/
+*_test.py
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Frontend build files (not needed for backend)
+dist/
+build/
+coverage/
+
+# Analysis and outputs
+analysis/
+out/
+outputs/
+*.zip
+*.png
+*.csv
+*.json
+*.jsonl.gz
+*.txt
+!requirements.txt
+!backend/requirements.txt
+
+# Git rewrite artifacts
+.git-rewrite/

@@ -78,6 +78,8 @@ else:
         "http://127.0.0.1:3003",
         "http://localhost:3004",
         "http://127.0.0.1:3004",
+        # Production frontend
+        "https://lot-genius-frontend.onrender.com",
     ]
 
 app.add_middleware(
@@ -184,7 +186,7 @@ async def report_stream_endpoint(request: Request) -> Response:
     try:
         body = await request.json()
         req = ReportRequest(**body)
-    except Exception as e:
+    except Exception:
         # Return error as SSE event for stream endpoint
         def error_gen():
             yield _sse({"event": "error", "status": "error", "detail": str(e)})

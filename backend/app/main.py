@@ -93,8 +93,8 @@ async def root_ebay_verification(challenge_code: str):
     return {"challengeResponse": challenge_code}
 
 
-# PLAIN TEXT VERSION - Most likely what eBay actually wants
-@app.get("/marketplace-account-deletion-plain")
+# PLAIN TEXT VERSION - Most likely what eBay actually wants  
+@app.get("/marketplace-account-deletion-text")
 async def root_ebay_verification_plain(challenge_code: str):
     """Root-level eBay endpoint returning plain text"""
     print(f"Root eBay PLAIN TEXT verification - challenge_code: {challenge_code}")

@@ -23,7 +23,9 @@ logger = logging.getLogger(__name__)
 
 @router.get("/marketplace-account-deletion")
 async def ebay_verification_token(
+    request: Request,
     challenge_code: str,
+    format: str = "json",
     verification_token: Optional[str] = Header(None, alias="X-EBAY-VERIFICATION-TOKEN"),
     user_agent: Optional[str] = Header(None, alias="User-Agent"),
 ):
@@ -52,7 +54,13 @@ async def ebay_verification_token(
     #     raise HTTPException(status_code=401, detail="Invalid verification token")
 
     # Return the challenge code as required by eBay
-    return {"challengeResponse": challenge_code}
+    # Support both JSON and plain text formats
+    if format.lower() in ["plain", "text", "plaintext"]:
+        logger.info(f"Returning PLAIN TEXT response: {challenge_code}")
+        return PlainTextResponse(content=challenge_code)
+    else:
+        logger.info(f"Returning JSON response: {{'challengeResponse': '{challenge_code}'}}")
+        return {"challengeResponse": challenge_code}
 
 
 @router.get("/marketplace-account-deletion/")

@@ -68,17 +68,19 @@ async def ebay_verification_token(
         new_query = urlparse.urlencode(query_params, doseq=True)
         endpoint_url = urlparse.urlunparse(parsed._replace(query=new_query))
     
-    # Concatenate the three parameters as per eBay requirements
-    hash_input = challenge_code + (verification_token or EBAY_VERIFICATION_TOKEN) + endpoint_url
-    
-    # Create SHA256 hash (assuming eBay uses SHA256 - common for API challenges)
-    challenge_hash = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
+    # Create SHA256 hash as per eBay specification
+    # eBay requires separate hash.update() calls for each parameter
+    hash_obj = hashlib.sha256()
+    hash_obj.update(challenge_code.encode('utf-8'))
+    hash_obj.update((verification_token or EBAY_VERIFICATION_TOKEN).encode('utf-8'))
+    hash_obj.update(endpoint_url.encode('utf-8'))
+    challenge_hash = hash_obj.hexdigest()
     
     logger.info(f"eBay Challenge Validation:")
     logger.info(f"  - challenge_code: {challenge_code}")
     logger.info(f"  - verification_token: {verification_token or EBAY_VERIFICATION_TOKEN}")
     logger.info(f"  - endpoint_url: {endpoint_url}")
-    logger.info(f"  - hash_input: {hash_input}")
+    logger.info(f"  - hash_method: separate hash.update() calls")
     logger.info(f"  - challenge_hash: {challenge_hash}")
     
     # Return the hashed response as per eBay specification

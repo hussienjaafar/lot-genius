@@ -10,12 +10,13 @@ from typing import Any, Dict, Optional
 
 import numpy as np
 from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException, Request, Response, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import PlainTextResponse, StreamingResponse
+from pydantic import ValidationError
 
 # Load environment variables from .env file
 load_dotenv()
-
-from fastapi import FastAPI, HTTPException, Request, Response, UploadFile
-from fastapi.responses import PlainTextResponse
 
 
 class NumpyEncoder(json.JSONEncoder):
@@ -30,10 +31,6 @@ class NumpyEncoder(json.JSONEncoder):
             return float(obj)
         return super().default(obj)
 
-
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
-from pydantic import ValidationError
 
 # dual import fallback for local vs package layout
 try:
@@ -65,10 +62,12 @@ except ModuleNotFoundError:
 
 app = FastAPI(title="LotGenius API")
 
-# Add CORS middleware for frontend development
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
+# Add CORS middleware (supports comma-separated env override via CORS_ORIGINS)
+origins_env = os.environ.get("CORS_ORIGINS", "").strip()
+if origins_env:
+    allow_origins = [o.strip() for o in origins_env.split(",") if o.strip()]
+else:
+    allow_origins = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
         "http://localhost:3001",
@@ -79,7 +78,11 @@ app.add_middleware(
         "http://127.0.0.1:3003",
         "http://localhost:3004",
         "http://127.0.0.1:3004",
-    ],
+    ]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allow_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
@@ -98,7 +101,7 @@ async def root_ebay_verification(challenge_code: str):
     return {"challengeResponse": challenge_code}
 
 
-# PLAIN TEXT VERSION - Most likely what eBay actually wants  
+# PLAIN TEXT VERSION - Most likely what eBay actually wants
 @app.get("/marketplace-account-deletion-text")
 async def root_ebay_verification_plain(challenge_code: str):
     """Root-level eBay endpoint returning plain text"""
@@ -181,7 +184,7 @@ async def report_stream_endpoint(request: Request) -> Response:
     try:
         body = await request.json()
         req = ReportRequest(**body)
-    except Exception:
+    except Exception as e:
         # Return error as SSE event for stream endpoint
         def error_gen():
             yield _sse({"event": "error", "status": "error", "detail": str(e)})

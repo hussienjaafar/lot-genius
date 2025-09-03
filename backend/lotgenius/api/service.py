@@ -309,12 +309,21 @@ def run_optimize(
         settings.HAZMAT_POLICY = original_hazmat_policy
 
     # Add review flag if upside share is material (>25% of lot value)
-    upside_value = sum(
-        i.get("est_price_mu", 0) * (i.get("quantity", 1) or 1) for i in upside_items
-    )
-    core_value = sum(
-        i.get("est_price_mu", 0) * (i.get("quantity", 1) or 1) for i in core_items
-    )
+    def _fnum(x) -> float:
+        try:
+            return float(x)
+        except Exception:
+            return 0.0
+
+    def _item_value(it: dict) -> float:
+        mu = _fnum(it.get("est_price_mu"))
+        q = _fnum(it.get("quantity", 1))
+        if q <= 0:
+            q = 1.0
+        return mu * q
+
+    upside_value = sum(_item_value(i) for i in upside_items)
+    core_value = sum(_item_value(i) for i in core_items)
     total_value = (upside_value + core_value) or 1.0
     review = (upside_value / total_value) > 0.25
 
@@ -417,13 +426,23 @@ def run_pipeline(
     # Actually perform Keepa enrichment (was missing!)
     from lotgenius.resolve import enrich_keepa_stats, resolve_ids
 
-    # Step 1: Resolve UPC/EAN/ASIN codes to ASINs via Keepa
-    emit_phase("resolve_ids", "resolving product IDs via Keepa API")
-    items_df, resolve_ledger = resolve_ids(items_csv, threshold=88, use_network=True)
+    # Decide whether to hit network for Keepa based on configuration
+    try:
+        from lotgenius.config import settings as _settings
+
+        use_keepa_network = bool(_settings.KEEPA_API_KEY)
+    except Exception:
+        use_keepa_network = False
+
+    # Step 1: Resolve UPC/EAN/ASIN codes to ASINs via Keepa (or skip network)
+    emit_phase("resolve_ids", "resolving product IDs")
+    items_df, resolve_ledger = resolve_ids(
+        items_csv, threshold=88, use_network=use_keepa_network
+    )
 
     # Step 2: Fetch Keepa stats (pricing, offers, sales rank) for resolved ASINs
-    emit_phase("enrich_keepa", "enriching with Keepa pricing data")
-    items_df, stats_ledger = enrich_keepa_stats(items_df, use_network=True)
+    emit_phase("enrich_keepa", "enriching with pricing data")
+    items_df, stats_ledger = enrich_keepa_stats(items_df, use_network=use_keepa_network)
 
     # Step 3: Calculate price distributions using the pricing model
     emit_phase("price", "calculating price distributions")
@@ -687,12 +706,37 @@ def run_pipeline(
         preview += "\n\n(truncated)"
 
     # Add review flag and evidence gate summary to result
-    review_value = sum(
-        i.get("est_price_mu", 0) * (i.get("quantity", 1) or 1) for i in review_items
-    )
-    core_value = sum(
-        i.get("est_price_mu", 0) * (i.get("quantity", 1) or 1) for i in core_items
-    )
+    review_value = 0.0
+    for i in review_items:
+        mu = i.get("est_price_mu") or 0.0
+        try:
+            mu = float(mu)
+        except Exception:
+            mu = 0.0
+        q = i.get("quantity", 1) or 1
+        try:
+            q = float(q)
+        except Exception:
+            q = 1.0
+        if q <= 0:
+            q = 1.0
+        review_value += mu * q
+
+    core_value = 0.0
+    for i in core_items:
+        mu = i.get("est_price_mu") or 0.0
+        try:
+            mu = float(mu)
+        except Exception:
+            mu = 0.0
+        q = i.get("quantity", 1) or 1
+        try:
+            q = float(q)
+        except Exception:
+            q = 1.0
+        if q <= 0:
+            q = 1.0
+        core_value += mu * q
     total_value = (review_value + core_value) or 1.0
     review = (review_value / total_value) > 0.25
 

@@ -45,9 +45,9 @@ class Settings(BaseSettings):
     # Feature flags
     ENABLE_SCRAPERS: bool = Field(False, description="Use low-trust scrapers (opt-in)")
 
-    # External comps scrapers (enabled by default for comprehensive data)
+    # External comps scrapers (DISABLED by default for safety/perf in prod)
     ENABLE_EBAY_SCRAPER: bool = Field(
-        True, description="Enable eBay sold comps scraper"
+        False, description="Enable eBay sold comps scraper"
     )
 
     # API Configuration for external data sources
@@ -69,14 +69,14 @@ class Settings(BaseSettings):
         True, description="Use ML-enhanced product matching"
     )
     ENABLE_FB_SCRAPER: bool = Field(
-        True, description="Enable Facebook Marketplace scraper"
+        False, description="Enable Facebook Marketplace scraper"
     )
     ENABLE_GOOGLE_SEARCH_ENRICHMENT: bool = Field(
-        True,
+        False,
         description="Enable Google Search for item enrichment (low-trust corroboration)",
     )
     SCRAPER_TOS_ACK: bool = Field(
-        True, description="Acknowledge scraper Terms of Service"
+        False, description="Acknowledge scraper Terms of Service"
     )
 
     # External comps configuration

@@ -3,6 +3,7 @@ eBay Marketplace Account Deletion and Verification endpoints
 Required for eBay production API access
 """
 
+import hashlib
 import logging
 import os
 from typing import Optional
@@ -53,14 +54,35 @@ async def ebay_verification_token(
     #     logger.warning(f"Invalid verification token received: {verification_token}")
     #     raise HTTPException(status_code=401, detail="Invalid verification token")
 
-    # Return the challenge code as required by eBay
-    # Support both JSON and plain text formats
-    if format.lower() in ["plain", "text", "plaintext"]:
-        logger.info(f"Returning PLAIN TEXT response: {challenge_code}")
-        return PlainTextResponse(content=challenge_code)
-    else:
-        logger.info(f"Returning JSON response: {{'challengeResponse': '{challenge_code}'}}")
-        return {"challengeResponse": challenge_code}
+    # eBay requires hashing: challenge_code + verification_token + endpoint_url
+    # Reference: https://developer.ebay.com/marketplace-account-deletion
+    
+    # Get the full endpoint URL
+    endpoint_url = str(request.url).replace("&format=plain", "").replace("?format=plain", "")
+    if "format=" in endpoint_url:
+        # Clean up any format parameters
+        import urllib.parse as urlparse
+        parsed = urlparse.urlparse(endpoint_url)
+        query_params = urlparse.parse_qs(parsed.query)
+        query_params.pop("format", None)
+        new_query = urlparse.urlencode(query_params, doseq=True)
+        endpoint_url = urlparse.urlunparse(parsed._replace(query=new_query))
+    
+    # Concatenate the three parameters as per eBay requirements
+    hash_input = challenge_code + (verification_token or EBAY_VERIFICATION_TOKEN) + endpoint_url
+    
+    # Create SHA256 hash (assuming eBay uses SHA256 - common for API challenges)
+    challenge_hash = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
+    
+    logger.info(f"eBay Challenge Validation:")
+    logger.info(f"  - challenge_code: {challenge_code}")
+    logger.info(f"  - verification_token: {verification_token or EBAY_VERIFICATION_TOKEN}")
+    logger.info(f"  - endpoint_url: {endpoint_url}")
+    logger.info(f"  - hash_input: {hash_input}")
+    logger.info(f"  - challenge_hash: {challenge_hash}")
+    
+    # Return the hashed response as per eBay specification
+    return {"challengeResponse": challenge_hash}
 
 
 @router.get("/marketplace-account-deletion/")

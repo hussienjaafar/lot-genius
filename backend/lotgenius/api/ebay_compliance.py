@@ -54,6 +54,42 @@ async def ebay_verification_token(
     return {"challengeResponse": challenge_code}
 
 
+@router.get("/marketplace-account-deletion/")
+async def ebay_verification_token_with_slash(
+    challenge_code: str,
+    verification_token: Optional[str] = Header(None, alias="X-EBAY-VERIFICATION-TOKEN"),
+    user_agent: Optional[str] = Header(None, alias="User-Agent"),
+):
+    """
+    eBay Marketplace Account Deletion verification endpoint with trailing slash
+    Some APIs require exact path matching including trailing slashes
+    """
+    logger.info(
+        f"eBay verification request (with slash) - challenge_code: {challenge_code}"
+    )
+    logger.info(f"User-Agent: {user_agent}")
+    logger.info(f"Verification token received: {verification_token}")
+
+    return {"challengeResponse": challenge_code}
+
+
+# Also add the endpoint at root level in case eBay expects no prefix
+@router.get("/account-deletion")
+async def ebay_account_deletion_simple(
+    challenge_code: str,
+    verification_token: Optional[str] = Header(None, alias="X-EBAY-VERIFICATION-TOKEN"),
+    user_agent: Optional[str] = Header(None, alias="User-Agent"),
+):
+    """
+    eBay Account Deletion endpoint without marketplace prefix
+    """
+    logger.info(f"eBay verification (simple path) - challenge_code: {challenge_code}")
+    logger.info(f"User-Agent: {user_agent}")
+    logger.info(f"Verification token received: {verification_token}")
+
+    return {"challengeResponse": challenge_code}
+
+
 @router.post("/marketplace-account-deletion")
 async def ebay_account_deletion_notification(request: Request):
     """

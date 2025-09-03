@@ -84,6 +84,14 @@ app.add_middleware(
 app.include_router(ebay_router)
 
 
+# Additional root-level endpoint for eBay in case they expect no prefix
+@app.get("/marketplace-account-deletion")
+async def root_ebay_verification(challenge_code: str):
+    """Root-level eBay marketplace account deletion endpoint"""
+    print(f"Root eBay verification - challenge_code: {challenge_code}")
+    return {"challengeResponse": challenge_code}
+
+
 def _sse(event_dict: dict) -> str:
     """Format a Server-Sent Event with both 'event:' and 'data:' lines."""
     name = event_dict.get("event") or "message"
@@ -159,7 +167,7 @@ async def report_stream_endpoint(request: Request) -> Response:
     try:
         body = await request.json()
         req = ReportRequest(**body)
-    except Exception:
+    except Exception as e:
         # Return error as SSE event for stream endpoint
         def error_gen():
             yield _sse({"event": "error", "status": "error", "detail": str(e)})

@@ -42,7 +42,7 @@ Marketplace Account Deletion Notification URL:
 https://yourdomain.com/ebay/marketplace-account-deletion
 
 Verification Token:
-lotgenius-verification-2024
+(Use the value from your environment variable EBAY_VERIFICATION_TOKEN)
 ```
 
 ### 3. eBay Will Test Your Endpoints
@@ -96,10 +96,26 @@ curl "http://127.0.0.1:8001/ebay/marketplace-account-deletion?challenge_code=tes
 
 ## Security Notes
 
-- Verification token is set to: `lotgenius-verification-2024`
-- Change this token in production for additional security
+- Set a strong `EBAY_VERIFICATION_TOKEN` in your `.env` (do not commit!).
+- Provide the same token value in the eBay developer portal.
 - Account deletion notifications are logged but no user data is stored yet
 - Implement actual user data deletion logic when you have user accounts
+
+Quick token generation examples:
+
+```powershell
+# PowerShell (Windows)
+$rng = New-Object System.Security.Cryptography.RNGCryptoServiceProvider
+$bytes = New-Object byte[] 32; $rng.GetBytes($bytes)
+$token = ([Convert]::ToBase64String($bytes)).TrimEnd('=')
+# Optional: keep only URL-safe chars
+$token -replace '[^A-Za-z0-9]',''
+```
+
+```bash
+# macOS/Linux
+openssl rand -hex 32
+```
 
 ## Troubleshooting
 

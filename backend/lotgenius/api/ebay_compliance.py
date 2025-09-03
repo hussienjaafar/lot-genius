@@ -8,6 +8,7 @@ import os
 from typing import Optional
 
 from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi.responses import PlainTextResponse
 
 # Create router for eBay compliance endpoints
 router = APIRouter(prefix="/ebay", tags=["eBay Compliance"])
@@ -71,6 +72,56 @@ async def ebay_verification_token_with_slash(
     logger.info(f"Verification token received: {verification_token}")
 
     return {"challengeResponse": challenge_code}
+
+
+@router.get("/marketplace-account-deletion-plaintext")
+async def ebay_verification_plain_text(
+    challenge_code: str,
+    verification_token: Optional[str] = Header(None, alias="X-EBAY-VERIFICATION-TOKEN"),
+    user_agent: Optional[str] = Header(None, alias="User-Agent"),
+):
+    """
+    eBay Marketplace Account Deletion - PLAIN TEXT RESPONSE
+    This is likely what eBay actually expects based on common webhook patterns
+    """
+    logger.info(f"eBay PLAIN TEXT verification - challenge_code: {challenge_code}")
+    logger.info(f"User-Agent: {user_agent}")
+    logger.info(f"Verification token received: {verification_token}")
+    
+    # Return plain text response - this is the most common webhook validation pattern
+    return PlainTextResponse(content=challenge_code)
+
+
+@router.post("/marketplace-account-deletion-plaintext")
+async def ebay_verification_plain_text_post(
+    request: Request,
+    verification_token: Optional[str] = Header(None, alias="X-EBAY-VERIFICATION-TOKEN"),
+    user_agent: Optional[str] = Header(None, alias="User-Agent"),
+):
+    """
+    eBay Marketplace Account Deletion - PLAIN TEXT RESPONSE (POST)
+    Handle POST requests with challenge in body
+    """
+    body = await request.body()
+    form_data = await request.form() if body else {}
+    json_data = await request.json() if body and request.headers.get("content-type") == "application/json" else {}
+    
+    # Try to get challenge from multiple sources
+    challenge_code = (
+        request.query_params.get("challenge_code") or 
+        form_data.get("challenge_code") or 
+        json_data.get("challenge_code") or
+        json_data.get("challenge") or
+        "unknown"
+    )
+    
+    logger.info(f"eBay PLAIN TEXT POST verification - challenge_code: {challenge_code}")
+    logger.info(f"User-Agent: {user_agent}")
+    logger.info(f"Request body: {body}")
+    logger.info(f"Form data: {form_data}")
+    logger.info(f"JSON data: {json_data}")
+    
+    return PlainTextResponse(content=challenge_code)
 
 
 # Also add the endpoint at root level in case eBay expects no prefix

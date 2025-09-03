@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from fastapi import FastAPI, HTTPException, Request, Response, UploadFile
+from fastapi.responses import PlainTextResponse
 
 
 class NumpyEncoder(json.JSONEncoder):
@@ -92,6 +93,14 @@ async def root_ebay_verification(challenge_code: str):
     return {"challengeResponse": challenge_code}
 
 
+# PLAIN TEXT VERSION - Most likely what eBay actually wants
+@app.get("/marketplace-account-deletion-plain")
+async def root_ebay_verification_plain(challenge_code: str):
+    """Root-level eBay endpoint returning plain text"""
+    print(f"Root eBay PLAIN TEXT verification - challenge_code: {challenge_code}")
+    return PlainTextResponse(content=challenge_code)
+
+
 def _sse(event_dict: dict) -> str:
     """Format a Server-Sent Event with both 'event:' and 'data:' lines."""
     name = event_dict.get("event") or "message"
@@ -167,7 +176,7 @@ async def report_stream_endpoint(request: Request) -> Response:
     try:
         body = await request.json()
         req = ReportRequest(**body)
-    except Exception as e:
+    except Exception:
         # Return error as SSE event for stream endpoint
         def error_gen():
             yield _sse({"event": "error", "status": "error", "detail": str(e)})

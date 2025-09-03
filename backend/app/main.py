@@ -38,6 +38,7 @@ from pydantic import ValidationError
 # dual import fallback for local vs package layout
 try:
     from lotgenius.api.ebay_compliance import router as ebay_router
+    from lotgenius.api.ebay_compliance_debug import router as ebay_debug_router
     from lotgenius.api.schemas import ReportRequest
     from lotgenius.api.service import (
         generate_report,
@@ -49,6 +50,9 @@ try:
 except ModuleNotFoundError:
     from backend.lotgenius.api.ebay_compliance import (
         router as ebay_router,  # type: ignore
+    )
+    from backend.lotgenius.api.ebay_compliance_debug import (
+        router as ebay_debug_router,  # type: ignore
     )
     from backend.lotgenius.api.schemas import ReportRequest  # type: ignore
     from backend.lotgenius.api.service import (  # type: ignore
@@ -83,6 +87,7 @@ app.add_middleware(
 
 # Include eBay compliance endpoints for production API access
 app.include_router(ebay_router)
+app.include_router(ebay_debug_router)
 
 
 # Additional root-level endpoint for eBay in case they expect no prefix

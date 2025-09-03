@@ -23,13 +23,8 @@ logger = logging.getLogger(__name__)
 
 
 @router.get("/marketplace-account-deletion")
-async def ebay_verification_token(
-    request: Request,
-    challenge_code: str,
-    format: str = "json",
-    verification_token: Optional[str] = Header(None, alias="X-EBAY-VERIFICATION-TOKEN"),
-    user_agent: Optional[str] = Header(None, alias="User-Agent"),
-):
+@router.post("/marketplace-account-deletion")
+async def ebay_verification_debug(request: Request):
     """
     eBay Marketplace Account Deletion verification endpoint
 
